@@ -8,7 +8,7 @@ module EX_stage(
     
     //from ds
     input wire         ds_to_es_valid,
-    input wire [11:0]  ds_alu_op,
+    input wire [18:0]  ds_alu_op,//add width for mul,div and mod
     input wire         ds_res_from_mem,
     input wire [31:0]  ds_alu_src1,
     input wire [31:0]  ds_alu_src2,
@@ -39,7 +39,7 @@ module EX_stage(
 wire es_ready_go;
 reg  es_valid;
 
-reg  [11:0] es_alu_op;
+reg  [18:0] es_alu_op;//add width for mul,div and mod
 reg  [31:0] es_alu_src1;
 reg  [31:0] es_alu_src2;
 reg  [31:0] es_rkd_value;
@@ -59,7 +59,7 @@ end
 
 always @(posedge clk) begin
     if (!resetn) begin
-        es_alu_op       <= 12'b0;
+        es_alu_op       <= 18'b0;
         es_res_from_mem <= 1'b0;
         es_alu_src1     <= 32'b0;
         es_alu_src2     <= 32'b0;
