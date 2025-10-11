@@ -248,6 +248,10 @@ assign inst_mod_wu = op_31_26_d[6'h00] & op_25_22_d[4'h0] & op_21_20_d[2'h2] & o
 assign inst_slli_w = op_31_26_d[6'h00] & op_25_22_d[4'h1] & op_21_20_d[2'h0] & op_19_15_d[5'h01];
 assign inst_srli_w = op_31_26_d[6'h00] & op_25_22_d[4'h1] & op_21_20_d[2'h0] & op_19_15_d[5'h09];
 assign inst_srai_w = op_31_26_d[6'h00] & op_25_22_d[4'h1] & op_21_20_d[2'h0] & op_19_15_d[5'h11];
+
+assign inst_slti   = op_31_26_d[6'h00] & op_25_22_d[4'h8];
+assign inst_sltui  = op_31_26_d[6'h00] & op_25_22_d[4'h9];
+
 assign inst_addi_w = op_31_26_d[6'h00] & op_25_22_d[4'ha];
 
 assign inst_andi   = op_31_26_d[6'h00] & op_25_22_d[4'hd];

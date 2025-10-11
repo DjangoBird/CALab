@@ -46,7 +46,10 @@ reg  [31:0] es_rkd_value;
 reg         es_mem_we;
 reg  [31:0] es_mem_result;
 
+wire        alu_complete;
+
 assign es_ready_go = 1'b1;
+assign es_ready_go = alu_complete;
 assign es_allowin  = !es_valid || es_ready_go && ms_allowin;
 assign es_to_ms_valid = es_valid && es_ready_go;
 
@@ -86,10 +89,13 @@ always @(posedge clk) begin
 end
 
 alu u_alu(
+    .clk       (clk),
+    .resetn    (resetn),
     .alu_op    (es_alu_op),
     .alu_src1  (es_alu_src1),
     .alu_src2  (es_alu_src2),
-    .alu_result(es_alu_result)
+    .alu_result(es_alu_result),
+    .complete  (alu_omplete)
 );
 
 assign data_sram_en    = es_valid && (es_mem_we || es_res_from_mem);
