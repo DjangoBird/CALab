@@ -1,8 +1,11 @@
 module alu(
-  input  wire [11:0] alu_op,
+  input  wire clk,
+  input  wire resetn,
+  input  wire [18:0] alu_op,//add width for mul,div and mod
   input  wire [31:0] alu_src1,
   input  wire [31:0] alu_src2,
-  output wire [31:0] alu_result
+  output wire [31:0] alu_result,
+  output wire        complete
 );
 
 wire op_add;   //add operation
@@ -18,6 +21,14 @@ wire op_srl;   //logic right shift
 wire op_sra;   //arithmetic right shift
 wire op_lui;   //Load Upper Immediate
 
+wire op_mul;
+wire op_mulh;
+wire op_mulhu;
+wire op_div;
+wire op_divu;
+wire op_mod;
+wire op_modu;
+
 // control code decomposition
 assign op_add  = alu_op[ 0];
 assign op_sub  = alu_op[ 1];
@@ -32,6 +43,14 @@ assign op_srl  = alu_op[ 9];
 assign op_sra  = alu_op[10];
 assign op_lui  = alu_op[11];
 
+assign op_mul  = alu_op[12];
+assign op_mulh = alu_op[13];
+assign op_mulhu= alu_op[14];
+assign op_div  = alu_op[15];
+assign op_divu = alu_op[16];
+assign op_mod  = alu_op[17];
+assign op_modu = alu_op[18];
+
 wire [31:0] add_sub_result;
 wire [31:0] slt_result;
 wire [31:0] sltu_result;
@@ -44,6 +63,28 @@ wire [31:0] sll_result;
 wire [63:0] sr64_result;
 wire [31:0] sr_result;
 
+wire [63:0] mul_result;
+wire [31:0] mod_result;
+wire [31:0] div_result;
+
+wire        mul_en;
+reg         mul_complete;
+wire        div_en;
+wire        div_complete;
+
+always @(posedge clk) begin
+  if(~resetn)
+    mul_complete <= 1'b0;
+  else if(mul_en & ~mul_complete)
+    mul_complete <= 1'b1;
+  else
+    mul_complete <= 1'b0;
+end
+
+assign mul_en = op_mul | op_mulh |op_mulhu;
+assign div_en = op_div | op_divu | op_mod |op_modu;
+
+//乘法器和除法器的例化调用
 
 // 32-bit adder
 wire [31:0] adder_a;
@@ -103,6 +144,10 @@ assign alu_result = ({32{op_add|op_sub}} & add_sub_result)
                   | ({32{op_xor       }} & xor_result)
                   | ({32{op_lui       }} & lui_result)
                   | ({32{op_sll       }} & sll_result)
-                  | ({32{op_srl|op_sra}} & sr_result);
+                  | ({32{op_srl|op_sra}} & sr_result)
+                  | ({32{op_mul       }} & mul_result[31:0])
+                  | ({32{op_mulh|op_mulhu}} & mul_result[63:32]);
+                  
+assign complete = (mul_complete & mul_en) | (div_complete & div_en) | (!div_en) & (!mul_en);
 
 endmodule
