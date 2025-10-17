@@ -63,28 +63,22 @@ wire [31:0] sll_result;
 wire [63:0] sr64_result;
 wire [31:0] sr_result;
 
-wire [63:0] mul_result;
-wire [31:0] mod_result;
-wire [31:0] div_result;
+//wire [63:0] mul_result;
+//wire [31:0] mod_result;
+//wire [31:0] div_result;
+wire [63:0] unsigned_mul_result;
+wire [63:0] signed_mul_result;
 
 wire        mul_en;
-reg         mul_complete;
 wire        div_en;
-wire        div_complete;
 
-always @(posedge clk) begin
-  if(~resetn)
-    mul_complete <= 1'b0;
-  else if(mul_en & ~mul_complete)
-    mul_complete <= 1'b1;
-  else
-    mul_complete <= 1'b0;
-end
+
+
 
 assign mul_en = op_mul | op_mulh |op_mulhu;
 assign div_en = op_div | op_divu | op_mod |op_modu;
 
-//乘法器和除法器的例化调用
+
 
 // 32-bit adder
 wire [31:0] adder_a;
@@ -114,11 +108,13 @@ assign sltu_result[0]    = ~adder_cout;
  * bug：or运算逻辑错误
  */
 // bitwise operation
-assign and_result = alu_src1 & alu_src2;
-assign or_result  = alu_src1 | alu_src2;
-assign nor_result = ~or_result;
-assign xor_result = alu_src1 ^ alu_src2;
-assign lui_result = alu_src2;
+assign and_result          = alu_src1 & alu_src2;
+assign or_result           = alu_src1 | alu_src2;
+assign nor_result          = ~or_result;
+assign xor_result          = alu_src1 ^ alu_src2;
+assign lui_result          = alu_src2;
+assign unsigned_mul_result = alu_src1 * alu_src2;
+assign signed_mul_result   = $signed(alu_src1) * $signed(alu_src2);
 
 /* answer
  * bug：移位的操作数错误
@@ -145,9 +141,9 @@ assign alu_result = ({32{op_add|op_sub}} & add_sub_result)
                   | ({32{op_lui       }} & lui_result)
                   | ({32{op_sll       }} & sll_result)
                   | ({32{op_srl|op_sra}} & sr_result)
-                  | ({32{op_mul       }} & mul_result[31:0])
-                  | ({32{op_mulh|op_mulhu}} & mul_result[63:32]);
+                  | ({32{op_mul       }} & signed_mul_result[31:0])
+                  | ({32{op_mulh      }} & signed_mul_result[63:32])
+                  | ({32{op_mulhu     }} & unsigned_mul_result[63:32]);
                   
-assign complete = (mul_complete & mul_en) | (div_complete & div_en) | (!div_en) & (!mul_en);
 
 endmodule
