@@ -29,6 +29,11 @@ wire op_divu;
 wire op_mod;
 wire op_modu;
 
+wire [63:0] mul_result;
+wire [31:0] div_result;
+wire [31:0] mod_result;
+
+
 // control code decomposition
 assign op_add  = alu_op[ 0];
 assign op_sub  = alu_op[ 1];
@@ -132,7 +137,7 @@ div u_div(
     .div_signed(op_div|op_mod),
     .x(alu_src1),
     .y(alu_src2),
-    .s(div_result),
+    .q(div_result),
     .r(mod_result),
     .complete(complete)
 );
@@ -155,10 +160,6 @@ assign alu_result = ({32{op_add|op_sub   }} & add_sub_result)
                   | ({32{op_mulh|op_mulhu}} & mul_result[63:32])
                   | ({32{op_div|op_divu  }} & div_result)
                   | ({32{op_mod|op_modu  }} & mod_result);
-
-
-
-
 
 
 endmodule
