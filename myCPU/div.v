@@ -82,7 +82,7 @@ module div(
         end
     end
 
-    assign q = div_signed ? (sign_q ? ~Q_R_Reg[31:0] + 1'b1 : Q_R_Reg[31:0]) : Q_R_Reg[31:0];3
+    assign q = div_signed ? (sign_q ? ~Q_R_Reg[31:0] + 1'b1 : Q_R_Reg[31:0]) : Q_R_Reg[31:0];
     assign r = div_signed ? (sign_r ? ~Q_R_Reg[63:32] + 1'b1 : Q_R_Reg[63:32]) : Q_R_Reg[63:32];
     
 endmodule
