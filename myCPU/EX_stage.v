@@ -95,7 +95,7 @@ alu u_alu(
     .alu_src1  (es_alu_src1),
     .alu_src2  (es_alu_src2),
     .alu_result(es_alu_result),
-    .complete  (alu_omplete)
+    .complete  (alu_complete)
 );
 
 assign data_sram_en    = es_valid && (es_mem_we || es_res_from_mem);

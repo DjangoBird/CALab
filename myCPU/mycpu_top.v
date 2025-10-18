@@ -38,7 +38,7 @@ wire [31:0] ms_pc;
 wire br_taken;
 wire [31:0] br_target;
 
-wire [11:0] ds_alu_op;
+wire [18:0] ds_alu_op;
 wire        ds_res_from_mem;
 wire        ds_rf_we;
 wire [ 4:0] ds_rf_waddr;

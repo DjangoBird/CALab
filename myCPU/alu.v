@@ -63,28 +63,6 @@ wire [31:0] sll_result;
 wire [63:0] sr64_result;
 wire [31:0] sr_result;
 
-wire [63:0] mul_result;
-wire [31:0] mod_result;
-wire [31:0] div_result;
-
-wire        mul_en;
-reg         mul_complete;
-wire        div_en;
-wire        div_complete;
-
-always @(posedge clk) begin
-  if(~resetn)
-    mul_complete <= 1'b0;
-  else if(mul_en & ~mul_complete)
-    mul_complete <= 1'b1;
-  else
-    mul_complete <= 1'b0;
-end
-
-assign mul_en = op_mul | op_mulh |op_mulhu;
-assign div_en = op_div | op_divu | op_mod |op_modu;
-
-//乘法器和除法器的例化调用
 
 // 32-bit adder
 wire [31:0] adder_a;
@@ -134,20 +112,53 @@ assign sr64_result = {{32{op_sra & alu_src1[31]}}, alu_src1[31:0]} >> alu_src2[4
  */
 assign sr_result   = sr64_result[31:0];
 
+
+
+//乘法器和除法器的例化调用
+mul u_mul(
+    .mul_clk(clk),
+    .resetn(resetn),
+    .mul_signed(op_mulh|op_mul),
+    .A(alu_src1),
+    .B(alu_src2),
+    .result(mul_result)
+);
+
+// DIV, MOD result
+div u_div(
+    .div_clk(clk),
+    .resetn(resetn),
+    .div(op_div|op_mod|op_divu|op_modu),
+    .div_signed(op_div|op_mod),
+    .x(alu_src1),
+    .y(alu_src2),
+    .s(div_result),
+    .r(mod_result),
+    .complete(complete)
+);
+
+
+
+
 // final result mux
-assign alu_result = ({32{op_add|op_sub}} & add_sub_result)
-                  | ({32{op_slt       }} & slt_result)
-                  | ({32{op_sltu      }} & sltu_result)
-                  | ({32{op_and       }} & and_result)
-                  | ({32{op_nor       }} & nor_result)
-                  | ({32{op_or        }} & or_result)
-                  | ({32{op_xor       }} & xor_result)
-                  | ({32{op_lui       }} & lui_result)
-                  | ({32{op_sll       }} & sll_result)
-                  | ({32{op_srl|op_sra}} & sr_result)
-                  | ({32{op_mul       }} & mul_result[31:0])
-                  | ({32{op_mulh|op_mulhu}} & mul_result[63:32]);
-                  
-assign complete = (mul_complete & mul_en) | (div_complete & div_en) | (!div_en) & (!mul_en);
+assign alu_result = ({32{op_add|op_sub   }} & add_sub_result)
+                  | ({32{op_slt          }} & slt_result)
+                  | ({32{op_sltu         }} & sltu_result)
+                  | ({32{op_and          }} & and_result)
+                  | ({32{op_nor          }} & nor_result)
+                  | ({32{op_or           }} & or_result)
+                  | ({32{op_xor          }} & xor_result)
+                  | ({32{op_lui          }} & lui_result)
+                  | ({32{op_sll          }} & sll_result)
+                  | ({32{op_srl|op_sra   }} & sr_result)
+                  | ({32{op_mul          }} & mul_result[31:0])
+                  | ({32{op_mulh|op_mulhu}} & mul_result[63:32])
+                  | ({32{op_div|op_divu  }} & div_result)
+                  | ({32{op_mod|op_modu  }} & mod_result);
+
+
+
+
+
 
 endmodule
