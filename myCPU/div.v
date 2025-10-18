@@ -41,7 +41,7 @@ module div(
     assign shifted_Q_R = Q_R_Reg << 1;
     assign shifted_R   = shifted_Q_R[64:32];
 
-    assign try_r_sub = current_r - y_extended; 
+    assign try_r_sub = shifted_R - y_extended; 
     
     assign sub_borrow = try_r_sub[32]; 
     
@@ -75,7 +75,7 @@ module div(
             else if (count >= 1 && count <= 32) begin 
                 Q_R_Reg <= { 
                     next_r_val,
-                    Q_R_Reg[31:1],      //左移
+                    shifted_Q_R[31:1],      //左移
                     ~sub_borrow         //上商
                 };
             end
