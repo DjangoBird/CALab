@@ -68,7 +68,7 @@ module mul (
     assign sel_x_val      = { sel_x[32], sel_x[30], sel_x[28], sel_x[26], sel_x[24], sel_x[22], sel_x[20], sel_x[18], sel_x[16], sel_x[14], sel_x[12], sel_x[10], sel_x[8], sel_x[6], sel_x[4], sel_x[2], sel_x[0] };
     assign sel_neg_x_val  = { sel_neg_x[32], sel_neg_x[30], sel_neg_x[28], sel_neg_x[26], sel_neg_x[24], sel_neg_x[22], sel_neg_x[20], sel_neg_x[18], sel_neg_x[16], sel_neg_x[14], sel_neg_x[12], sel_neg_x[10], sel_neg_x[8], sel_neg_x[6], sel_neg_x[4], sel_neg_x[2], sel_neg_x[0] };
     assign sel_2x_val     = { sel_2x[32], sel_2x[30], sel_2x[28], sel_2x[26], sel_2x[24], sel_2x[22], sel_2x[20], sel_2x[18], sel_2x[16], sel_2x[14], sel_2x[12], sel_2x[10], sel_2x[8], sel_2x[6], sel_2x[4], sel_2x[2], sel_2x[0] };
-    assign sel_neg_2x_val = { sel_neg_2x[32], sel_neg_2x[30], sel_neg_2x[28], sel_neg_2x[26], sel_neg_2x[24], sel_neg_2x[22], sel_neg_2x[20], sel_neg_2x[18], sel_neg_x[16], sel_neg_x[14], sel_neg_x[12], sel_neg_x[10], sel_neg_x[8], sel_neg_x[6], sel_neg_x[4], sel_neg_x[2], sel_neg_x[0] };
+    assign sel_neg_2x_val = { sel_neg_2x[32], sel_neg_2x[30], sel_neg_2x[28], sel_neg_2x[26], sel_neg_2x[24], sel_neg_2x[22], sel_neg_2x[20], sel_neg_2x[18], sel_neg_2x[16], sel_neg_2x[14], sel_neg_2x[12], sel_neg_2x[10], sel_neg_2x[8], sel_neg_2x[6], sel_neg_2x[4], sel_neg_2x[2], sel_neg_2x[0] };
     assign sel_0_val      = { sel_0[32], sel_0[30], sel_0[28], sel_0[26], sel_0[24], sel_0[22], sel_0[20], sel_0[18], sel_0[16], sel_0[14], sel_0[12], sel_0[10], sel_0[8], sel_0[6], sel_0[4], sel_0[2], sel_0[0] };
 
 

@@ -51,7 +51,7 @@ always @(posedge clk) begin
         ws_rf_waddr <= ms_rf_waddr;
         ws_rf_we    <= ms_rf_we;
     end
-    else begin
+    else if(ws_allowin) begin
         ws_rf_we <= 1'b0;
     end
 end

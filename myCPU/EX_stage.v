@@ -19,11 +19,11 @@ module EX_stage(
     input wire [31:0]  ds_pc,
     
     //to ms
-    output wire         es_to_ms_valid,
+    output wire        es_to_ms_valid,
     output reg  [31:0] es_pc,
 
     //to id: for load-use
-    output reg         es_rf_we,
+    output reg         es_rf_we_reg,
     output reg  [ 4:0] es_rf_waddr,
     output wire [31:0] es_alu_result,
     output reg         es_res_from_mem,
@@ -45,10 +45,10 @@ reg  [31:0] es_alu_src2;
 reg  [31:0] es_rkd_value;
 reg         es_mem_we;
 reg  [31:0] es_mem_result;
+reg         es_rf_we_wire;
 
 wire        alu_complete;
 
-assign es_ready_go = 1'b1;
 assign es_ready_go = alu_complete;
 assign es_allowin  = !es_valid || es_ready_go && ms_allowin;
 assign es_to_ms_valid = es_valid && es_ready_go;
@@ -68,7 +68,7 @@ always @(posedge clk) begin
         es_alu_src2     <= 32'b0;
         es_rkd_value    <= 32'b0;
         es_mem_we       <= 1'b0;
-        es_rf_we        <= 1'b0;
+        es_rf_we_wire   <= 1'b0;
         es_rf_waddr     <= 5'b0;
         es_pc           <= 32'b0;
     end
@@ -83,8 +83,10 @@ always @(posedge clk) begin
         es_rf_waddr     <= ds_rf_waddr;
         es_pc           <= ds_pc;
     end
-    else begin
+    else if(es_allowin) begin
         es_rf_we        <= 1'b0;
+        es_res_from_mem <= 1'b0;
+        es_mem_we       <= 1'b0;
     end
 end
 

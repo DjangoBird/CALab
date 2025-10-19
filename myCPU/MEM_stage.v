@@ -59,6 +59,10 @@ always @(posedge clk) begin
         ms_rf_waddr     <= es_rf_waddr;
         ms_rf_we        <= es_rf_we;
     end
+    else if(ms_allowin) begin
+        ms_rf_we        <= 1'b0;
+        ms_res_from_mem <= 1'b0;
+    end
 end
 
 assign ms_mem_result = data_sram_rdata;
