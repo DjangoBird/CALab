@@ -23,7 +23,7 @@ module EX_stage(
     output reg  [31:0] es_pc,
 
     //to id: for load-use
-    output reg         es_rf_we_reg,
+    output reg         es_rf_we,
     output reg  [ 4:0] es_rf_waddr,
     output wire [31:0] es_alu_result,
     output reg         es_res_from_mem,
