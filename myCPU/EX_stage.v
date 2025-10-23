@@ -45,7 +45,7 @@ reg  [31:0] es_alu_src2;
 reg  [31:0] es_rkd_value;
 reg         es_mem_we;
 reg  [31:0] es_mem_result;
-reg         es_rf_we_wire;
+reg         es_rf_we;
 
 wire        alu_complete;
 
@@ -68,7 +68,7 @@ always @(posedge clk) begin
         es_alu_src2     <= 32'b0;
         es_rkd_value    <= 32'b0;
         es_mem_we       <= 1'b0;
-        es_rf_we_wire   <= 1'b0;
+        es_rf_we        <= 1'b0;
         es_rf_waddr     <= 5'b0;
         es_pc           <= 32'b0;
     end
