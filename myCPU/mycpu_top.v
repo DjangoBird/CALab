@@ -59,6 +59,9 @@ wire       ws_rf_we;
 wire [ 4:0] ws_rf_waddr;
 wire [31:0] ws_rf_wdata;
 
+wire [7:0] mem_inst;
+wire [4:0] es_ld_inst;
+
 
 IF_stage u_IF_stage(
     .clk            (clk            ),
@@ -116,13 +119,20 @@ ID_stage u_ID_stage(
     //from mem
     .ms_rf_we       (ms_rf_we       ),
     .ms_rf_waddr    (ms_rf_waddr    ),
-    .ms_rf_wdata    (ms_rf_wdata    )
+    .ms_rf_wdata    (ms_rf_wdata    ),
+
+    .mem_inst       (mem_inst       )
 );
 
 EX_stage u_EX_stage(
     .clk            (clk            ),
     .resetn         (resetn         ),
     //allowin
+
+    .mem_inst       (mem_inst       ),
+
+    .es_ld_inst     (es_ld_inst     ),
+
     .ms_allowin     (ms_allowin     ),
     .es_allowin     (es_allowin     ),
     //from ds
@@ -169,6 +179,9 @@ MEM_stage u_MEM_stage(
     .ms_rf_we       (ms_rf_we       ),
     .ms_rf_waddr    (ms_rf_waddr    ),
     .ms_rf_wdata    (ms_rf_wdata    ),
+
+    .es_ld_inst     (es_ld_inst     ),
+
     //from data sram
     .data_sram_rdata(data_sram_rdata)
 );

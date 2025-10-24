@@ -41,7 +41,9 @@ module ID_stage(
     //from wb
     input  wire        ws_rf_we,
     input  wire [ 4:0] ws_rf_waddr,
-    input  wire [31:0] ws_rf_wdata
+    input  wire [31:0] ws_rf_wdata,
+
+    output wire [ 7:0] mem_inst//
 );
 
 wire ds_ready_go;
@@ -80,7 +82,7 @@ wire [19:0] i20;
 wire [15:0] i16;
 wire [25:0] i26;
 
-//独热码
+//独热�?
 wire [63:0] op_31_26_d;
 wire [15:0] op_25_22_d;
 wire [ 3:0] op_21_20_d;
@@ -123,7 +125,18 @@ wire        inst_div_wu;//
 wire        inst_mod_w;//
 wire        inst_mod_wu;//
 
+wire        inst_blt;
+wire        inst_bge;
+wire        inst_bltu;
+wire        inst_bgeu;
 
+wire        inst_ld_b;
+wire        inst_ld_h;
+wire        inst_ld_bu;
+wire        inst_ld_hu;
+
+wire        inst_st_b;
+wire        inst_st_h;
 
 wire        need_ui5;
 wire        need_ui12;//
@@ -151,6 +164,10 @@ wire need_r2;
 
 
 wire rj_eq_rd;
+wire rj_less_rd;
+wire rj_less_rd_u;
+
+
 
 /////////////////////////////////////////////////////////
 //handsake
@@ -189,13 +206,20 @@ end
 //////////////////////////////////////////////////////////
 
 assign rj_eq_rd = (rj_value == rkd_value);
+assign rj_less_rd = ($signed(rj_value) < $signed(rkd_value));
+assign rj_less_rd_u = (rj_value < rkd_value);
+
 assign br_taken = (   inst_beq  &&  rj_eq_rd
                    || inst_bne  && !rj_eq_rd
-                   || inst_jirl
+                   || inst_blt  &&  rj_less_rd
+                   || inst_bge  && !rj_less_rd
+                   || inst_bltu &&  rj_less_rd_u
+                   || inst_bgeu && !rj_less_rd_u
+                   || inst_jirl 
                    || inst_bl
                    || inst_b
                   ) && ds_valid;
-assign br_target = (inst_beq || inst_bne || inst_bl || inst_b) ? (ds_pc + br_offs) :
+assign br_target = (inst_beq || inst_bne || inst_bl || inst_b || inst_blt || inst_bge || inst_bltu || inst_bgeu) ? (ds_pc + br_offs) :
                                                    /*inst_jirl*/ (rj_value + jirl_offs);
 
 
@@ -269,9 +293,24 @@ assign inst_lu12i_w= op_31_26_d[6'h05] & ~ds_inst[25];
 
 assign inst_pcaddul2i = op_31_26_d[6'h07] & ~ds_inst[25];
 
+assign inst_blt    = op_31_26_d[6'h18];
+assign inst_bge    = op_31_26_d[6'h19];
+assign inst_bltu   = op_31_26_d[6'h1a];
+assign inst_bgeu   = op_31_26_d[6'h1b];
+
+assign inst_ld_b   = op_31_26_d[6'h0a] & op_25_22_d[4'h0];
+assign inst_ld_h   = op_31_26_d[6'h0a] & op_25_22_d[4'h1];
+assign inst_ld_bu  = op_31_26_d[6'h0a] & op_25_22_d[4'h8];
+assign inst_ld_hu  = op_31_26_d[6'h0a] & op_25_22_d[4'h9];
+
+assign inst_st_b   = op_31_26_d[6'h0a] & op_25_22_d[4'h4];
+assign inst_st_h   = op_31_26_d[6'h0a] & op_25_22_d[4'h5];
+
+
+assign mem_inst = {inst_st_b, inst_st_h, inst_st_w, inst_ld_b, inst_ld_bu,inst_ld_h, inst_ld_hu, inst_ld_w};//传�?�loadstore
 
 assign ds_alu_op[ 0] = inst_add_w | inst_addi_w | inst_ld_w | inst_st_w
-                    | inst_jirl | inst_bl | inst_pcaddul2i;
+                    | inst_jirl | inst_bl | inst_pcaddul2i |inst_ld_b|inst_ld_bu|inst_ld_h|inst_ld_hu |inst_st_h |inst_st_b;
 assign ds_alu_op[ 1] = inst_sub_w;
 assign ds_alu_op[ 2] = inst_slt | inst_slti;
 assign ds_alu_op[ 3] = inst_sltu | inst_sltui;
@@ -293,8 +332,8 @@ assign ds_alu_op[18] = inst_mod_wu;
 
 assign need_ui5   =  inst_slli_w | inst_srli_w | inst_srai_w;
 assign need_ui12  =  inst_andi   | inst_ori | inst_xori ;
-assign need_si12  =  inst_addi_w | inst_ld_w | inst_st_w | inst_slti | inst_sltui;
-assign need_si16  =  inst_jirl | inst_beq | inst_bne;
+assign need_si12  =  inst_addi_w | inst_ld_w | inst_st_w|inst_st_b|inst_st_h | inst_slti | inst_sltui |inst_ld_b|inst_ld_bu|inst_ld_h|inst_ld_hu;
+assign need_si16  =  inst_jirl | inst_beq | inst_bne | inst_blt |inst_bge |inst_bltu |inst_bgeu;//
 assign need_si20  =  inst_lu12i_w | inst_pcaddul2i;
 assign need_si26  =  inst_b | inst_bl;
 assign src2_is_4  =  inst_jirl | inst_bl;
@@ -309,7 +348,7 @@ assign br_offs = need_si26 ? {{ 4{i26[25]}}, i26[25:0], 2'b0} :
 
 assign jirl_offs = {{14{i16[15]}}, i16[15:0], 2'b0};
 
-assign src_reg_is_rd = inst_beq | inst_bne | inst_st_w;
+assign src_reg_is_rd = inst_beq | inst_bne | inst_blt | inst_bge | inst_bltu | inst_bgeu | inst_st_w |inst_st_b|inst_st_h;
 
 assign ds_src1_is_pc    = inst_jirl | inst_bl | inst_pcaddul2i;
 
@@ -318,7 +357,13 @@ assign ds_src2_is_imm   = inst_slli_w |
                        inst_srai_w |
                        inst_addi_w |
                        inst_ld_w   |
+                       inst_ld_b   |
+                       inst_ld_bu  |
+                       inst_ld_h   |
+                       inst_ld_hu  |
                        inst_st_w   |
+                       inst_st_b   |
+                       inst_st_h   |
                        inst_lu12i_w|
                        inst_jirl   |
                        inst_bl     |
@@ -333,13 +378,13 @@ assign ds_alu_src1 = ds_src1_is_pc  ? ds_pc[31:0] : rj_value;
 assign ds_alu_src2 = ds_src2_is_imm ? imm : rkd_value;
 assign ds_rkd_value= rkd_value;
 
-assign ds_res_from_mem  = inst_ld_w;
+assign ds_res_from_mem  = inst_ld_w | inst_ld_b |inst_ld_bu|inst_ld_h|inst_ld_hu;
 assign dst_is_r1     = inst_bl;
 /* answer
- * bug：inst_bl需要写回通用寄存器堆
+ * bug：inst_bl�?要写回�?�用寄存器堆
  */
-assign gr_we         = ~inst_st_w & ~inst_beq & ~inst_bne & ~inst_b & ds_valid;
-assign ds_mem_we        = inst_st_w & ds_valid;
+assign gr_we         = ~inst_st_w & ~inst_beq & ~inst_bne & ~inst_blt & ~inst_bge & ~inst_bltu & ~inst_bgeu & ~inst_b & ~inst_st_b & ~inst_st_h & ds_valid;
+assign ds_mem_we        = (inst_st_w |inst_st_b|inst_st_h) & ds_valid;
 assign dest          = dst_is_r1 ? 5'd1 : rd;
 
 
@@ -359,7 +404,7 @@ regfile u_regfile(
     .we     (ws_rf_we    ),
     .waddr  (ws_rf_waddr ),
     .wdata  (ws_rf_wdata )
-    );
+);
 
 assign ds_rf_we    = gr_we;
 assign ds_rf_waddr = dest;
