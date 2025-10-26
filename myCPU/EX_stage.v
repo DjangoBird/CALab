@@ -71,8 +71,8 @@ always @(posedge clk) begin
         es_alu_src1     <= 32'b0;
         es_alu_src2     <= 32'b0;
         es_rkd_value    <= 32'b0;
-
-        es_rf_we   <= 1'b0;
+        es_mem_we       <= 1'b0;
+        es_rf_we        <= 1'b0;
         es_rf_waddr     <= 5'b0;
         es_pc           <= 32'b0;
         es_ld_inst      <= 5'b0;
