@@ -208,4 +208,25 @@ WB_stage u_WB_stage(
     .debug_wb_rf_wdata(debug_wb_rf_wdata)
 );
 
+csr u_csr(
+        .clock      (clk      ),
+        .reset      (~resetn   ),
+        
+        .csr_re     (csr_re    ),
+        .csr_num    (csr_num   ),
+        .csr_rvalue (csr_rvalue),
+        
+        .csr_we     (csr_we    ),
+        .csr_wmask  (csr_wmask ),
+        .csr_wvalue (csr_wvalue),
+
+        .ex_entry   (ex_entry  ),
+        .ertn_entry (ertn_entry),
+        .has_int    (has_int   ),
+        .ertn_flush (ertn_flush),
+        .wb_ex      (wb_ex     ),
+        .wb_ecode   (wb_ecode  ),
+        .wb_esubcode(wb_esubcode),
+        .wb_pc      (wb_pc     )
+    );
 endmodule
