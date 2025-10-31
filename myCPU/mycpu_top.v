@@ -63,6 +63,24 @@ wire [7:0] mem_inst;
 wire [4:0] es_ld_inst;
 
 
+//csr with other
+wire [13:0] csr_num;
+wire [31:0] csr_rvalue;
+    
+wire        csr_we;
+wire [31:0] csr_wmask;
+wire [31:0] csr_wvalue;
+wire [31:0]   ex_entry; //送往pre-IF的异常处理入口地址
+wire [31:0]   ertn_entry; //送往pre-IF的返回入口地址
+wire          has_int; //送往ID流水级的中断有效信号
+wire        ertn_flush; //来自WB流水级的ertn指令执行有效信号
+
+wire        ms_ex;   
+wire        wb_ex; //来自WB流水级的异常处理触发信号
+wire [ 5:0] wb_ecode; //异常类型
+wire [ 8:0] wb_esubcode; //异常类型
+reg  [31:0] wb_pc; //写回的返回地址
+
 IF_stage u_IF_stage(
     .clk            (clk            ),
     .resetn         (resetn         ),
@@ -80,7 +98,12 @@ IF_stage u_IF_stage(
     .inst_sram_we   (inst_sram_we   ),
     .inst_sram_addr (inst_sram_addr ),
     .inst_sram_wdata(inst_sram_wdata),
-    .inst_sram_rdata(inst_sram_rdata)
+    .inst_sram_rdata(inst_sram_rdata),
+    
+    .wb_ex(wb_ex),
+    .ertn_flush(ertn_flush),
+    .ex_entry(ex_entry),
+    .ertn_entry(ertn_entry)
 );
 
 ID_stage u_ID_stage(
@@ -121,7 +144,9 @@ ID_stage u_ID_stage(
     .ms_rf_waddr    (ms_rf_waddr    ),
     .ms_rf_wdata    (ms_rf_wdata    ),
 
-    .mem_inst       (mem_inst       )
+    .mem_inst       (mem_inst       ),
+    
+    .wb_ex(wb_ex|ertn_flush)
 );
 
 EX_stage u_EX_stage(
@@ -157,7 +182,9 @@ EX_stage u_EX_stage(
     .data_sram_en   (data_sram_en   ),
     .data_sram_we   (data_sram_we  ),
     .data_sram_addr (data_sram_addr ),
-    .data_sram_wdata(data_sram_wdata)
+    .data_sram_wdata(data_sram_wdata),
+    .ms_ex(ms_ex),
+    .wb_ex(wb_ex|ertn_flush)
 );
 
 MEM_stage u_MEM_stage(
@@ -183,7 +210,10 @@ MEM_stage u_MEM_stage(
     .es_ld_inst     (es_ld_inst     ),
 
     //from data sram
-    .data_sram_rdata(data_sram_rdata)
+    .data_sram_rdata(data_sram_rdata),
+    
+    .ms_ex(ms_ex),
+    .wb_ex(wb_ex|ertn_flush)
 );
 
 WB_stage u_WB_stage(
@@ -205,7 +235,19 @@ WB_stage u_WB_stage(
     .debug_wb_pc      (debug_wb_pc       ),
     .debug_wb_rf_we   (debug_wb_rf_we   ),
     .debug_wb_rf_wnum (debug_wb_rf_wnum ),
-    .debug_wb_rf_wdata(debug_wb_rf_wdata)
+    .debug_wb_rf_wdata(debug_wb_rf_wdata),
+    
+    .csr_re     (csr_re    ),
+    .csr_num    (csr_num   ),
+    .csr_rvalue (csr_rvalue),
+    .csr_we     (csr_we    ),
+    .csr_wmask  (csr_wmask ),
+    .csr_wvalue (csr_wvalue),
+    .ertn_flush (ertn_flush),
+    .wb_ex      (wb_ex     ),
+    .wb_pc      (wb_pc     ),
+    .wb_ecode   (wb_ecode  ),
+    .wb_esubcode(wb_esubcode)
 );
 
 csr u_csr(

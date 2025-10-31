@@ -35,7 +35,10 @@ module EX_stage(
     output wire        data_sram_en,
     output wire [ 3:0] data_sram_we,
     output wire [31:0] data_sram_addr,
-    output wire [31:0] data_sram_wdata
+    output wire [31:0] data_sram_wdata,
+    
+    input  wire        ms_ex,
+    input  wire        wb_ex
 
 );
 
@@ -71,7 +74,7 @@ always @(posedge clk) begin
         es_alu_src1     <= 32'b0;
         es_alu_src2     <= 32'b0;
         es_rkd_value    <= 32'b0;
-        es_mem_we       <= 1'b0;
+
         es_rf_we        <= 1'b0;
         es_rf_waddr     <= 5'b0;
         es_pc           <= 32'b0;

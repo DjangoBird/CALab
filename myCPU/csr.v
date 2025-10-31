@@ -31,7 +31,7 @@ module csr(
     input  wire          reset     ,
     
     // 指令访问接口
-    input  wire          csr_re    ,
+    //input  wire          csr_re    ,
     input  wire [13:0]   csr_num   ,
     output wire [31:0]   csr_rvalue,
     

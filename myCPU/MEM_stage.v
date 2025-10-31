@@ -26,7 +26,10 @@ module MEM_stage(
     input  wire [ 4:0] es_ld_inst,//
 
     //data sram interface
-    input wire [31:0] data_sram_rdata
+    input wire [31:0] data_sram_rdata,
+    
+    output wire        ms_ex,
+    input  wire        wb_ex   
 );
 
 wire ms_ready_go;

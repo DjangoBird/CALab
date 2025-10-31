@@ -43,7 +43,9 @@ module ID_stage(
     input  wire [ 4:0] ws_rf_waddr,
     input  wire [31:0] ws_rf_wdata,
 
-    output wire [ 7:0] mem_inst//
+    output wire [ 7:0] mem_inst,//
+    
+    input wire wb_ex
 );
 
 wire ds_ready_go;
@@ -137,6 +139,13 @@ wire        inst_ld_hu;
 
 wire        inst_st_b;
 wire        inst_st_h;
+
+//添加寄存器操作，异常，系统调用指令
+wire        inst_csrrd;
+wire        inst_csrwr;
+wire        inst_csrxchg;
+wire        inst_ertn;
+wire        inst_syscall;
 
 wire        need_ui5;
 wire        need_ui12;//

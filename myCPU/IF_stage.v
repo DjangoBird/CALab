@@ -19,7 +19,13 @@ module IF_stage(
     output wire [ 3:0] inst_sram_we,
     output wire [31:0] inst_sram_addr,
     output wire [31:0] inst_sram_wdata,
-    input  wire [31:0] inst_sram_rdata
+    input  wire [31:0] inst_sram_rdata,
+    
+    // exception
+    input  wire         wb_ex,
+    input  wire         ertn_flush,
+    input  wire [31:0]  ex_entry,
+    input  wire [31:0]  ertn_entry
 );
 
 wire to_fs_valid;
@@ -31,10 +37,12 @@ wire [31:0] seq_pc;
 wire [31:0] nextpc;
 
 assign seq_pc = fs_pc + 32'h4;
-assign nextpc = br_taken ? br_target : seq_pc;
+assign nextpc = wb_ex ? ex_entry:
+                ertn_flush ? ertn_entry:
+                br_taken ? br_target : seq_pc;//异常 or 冲刷 or 跳转 or 顺序
 
 assign fs_ready_go  = 1'b1;
-assign fs_allowin   = !fs_valid | (fs_ready_go && ds_allowin);
+assign fs_allowin   = !fs_valid | (fs_ready_go && ds_allowin) | ertn_flush |wb_ex;//冲刷和WB处理异常时不能取值
 assign fs_to_ds_valid = fs_valid && fs_ready_go;
 assign to_fs_valid = resetn;
 
