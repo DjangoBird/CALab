@@ -283,7 +283,7 @@ WB_stage u_WB_stage(
 );
 
 csr u_csr(
-        .clock      (clk      ),
+        .clk      (clk      ),
         .reset      (~resetn   ),
         
         .csr_re     (csr_re    ),

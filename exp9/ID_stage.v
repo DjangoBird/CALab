@@ -446,6 +446,8 @@ regfile u_regfile(
 assign ds_rf_we    = gr_we;
 assign ds_rf_waddr = dest;
 
+wire type_branch_cond = inst_beq | inst_bne | inst_blt | inst_bge | inst_bltu | inst_bgeu;
+
 
 assign conflict_rs1_wb = ws_rf_we && (rf_raddr1 != 5'b0) && (ws_rf_waddr == rf_raddr1);
 assign conflict_rs2_wb = ws_rf_we && (rf_raddr2 != 5'b0) && (ws_rf_waddr == rf_raddr2);
@@ -453,8 +455,8 @@ assign conflict_rs1_ex = es_rf_we && (rf_raddr1 != 5'b0) && (es_rf_waddr == rf_r
 assign conflict_rs2_ex = es_rf_we && (rf_raddr2 != 5'b0) && (es_rf_waddr == rf_raddr2);
 assign conflict_rs1_mem= ms_rf_we && (rf_raddr1 != 5'b0) && (ms_rf_waddr == rf_raddr1);
 assign conflict_rs2_mem= ms_rf_we && (rf_raddr2 != 5'b0) && (ms_rf_waddr == rf_raddr2);
-assign need_r1         = ~ds_src1_is_pc & (ds_alu_op != 12'b0);
-assign need_r2         = ~ds_src2_is_imm & (ds_alu_op != 12'b0);
+assign need_r1         = ~ds_src1_is_pc & ((ds_alu_op != 18'b0) | type_branch_cond);
+assign need_r2         = ~ds_src2_is_imm & ((ds_alu_op != 18'b0) | type_branch_cond);
 
 //bypass
 
