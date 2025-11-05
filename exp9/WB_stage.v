@@ -66,7 +66,7 @@ always @(posedge clk) begin
         ws_rf_we     <= 1'b0;
         
         csr_re    <= 1'b0;
-        ws_ex_zip <= 80'b0;
+        ws_ex_zip <= 81'b0;
     end
     else if (ms_to_ws_valid && ws_allowin) begin
         wb_pc       <= ms_pc;
@@ -74,8 +74,9 @@ always @(posedge clk) begin
         ws_rf_waddr <= ms_rf_waddr;
         ws_rf_we    <= ms_rf_we;
         
-        csr_re    <= ms_csr_re;
-        ws_ex_zip <= ms_ex_zip;
+    // accept csr read request and exception zip from MS when transfer occurs
+    csr_re    <= ms_csr_re;
+    ws_ex_zip <= ms_ex_zip;
         
     end
     else if(ws_allowin) begin
@@ -85,7 +86,7 @@ end
 
 assign ws_rf_wdata = csr_re ? csr_rvalue : ws_from_ms_wdata;
 //exception
-assign {csr_we, csr_wmask, csr_wvalue, csr_num ,wb_ex, ertn_flush} = ws_ex_zip;
+assign {csr_we, csr_wmask, csr_wvalue, csr_num ,wb_ex, ertn_flush} = ws_ex_zip & {81{ws_valid}};
 assign wb_ecode = {6{wb_ex}} & 6'hb;
 assign wb_esubcode = 9'b0;
 

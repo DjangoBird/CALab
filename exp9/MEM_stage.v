@@ -70,7 +70,7 @@ always @(posedge clk) begin
         ms_ld_inst       <= 5'b0;
         
         ms_csr_re        <= 1'b0;
-        ms_ex_zip        <= 80'b0;
+        ms_ex_zip        <= 81'b0;
     end
     else if (es_to_ms_valid && ms_allowin) begin
         ms_pc           <= es_pc;
@@ -80,8 +80,9 @@ always @(posedge clk) begin
         ms_rf_we        <= es_rf_we;
         ms_ld_inst      <= es_ld_inst;
         
-        ms_csr_re        <= es_csr_re & ms_valid;
-        ms_ex_zip        <= es_ex_zip;
+    // pass through csr read request and exception zip when transfer occurs
+    ms_csr_re        <= es_csr_re;
+    ms_ex_zip        <= es_ex_zip;
     end
     else if(ms_allowin) begin
         ms_rf_we        <= 1'b0;

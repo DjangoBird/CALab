@@ -91,7 +91,7 @@ always @(posedge clk) begin
         es_ld_inst      <= 5'b0;
         es_st_inst      <= 3'b0;
         
-        es_ex_zip       <= 82'b0;
+        es_ex_zip       <= 81'b0;
         es_csr_re       <= 1'b0;
     end
     else if (ds_to_es_valid && es_allowin) begin
@@ -107,8 +107,9 @@ always @(posedge clk) begin
         es_ld_inst      <= mem_inst[4:0];
         es_st_inst      <= mem_inst[7:5];
         
-        es_ex_zip       <= ds_ex_zip;
-        es_csr_re       <= ds_csr_re & es_valid;
+    es_ex_zip       <= ds_ex_zip;
+    // propagate csr read request from ID stage when the transfer occurs
+    es_csr_re       <= ds_csr_re;
     end
     else if(es_allowin) begin
         es_rf_we        <= 1'b0;

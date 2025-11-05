@@ -32,11 +32,13 @@ module ID_stage(
     input  wire [ 4:0] es_rf_waddr,
     input  wire [31:0] es_alu_result,
     input  wire        es_res_from_mem,
+    input  wire        es_csr_re,
     
     //from mem
     input  wire        ms_rf_we,
     input  wire [ 4:0] ms_rf_waddr,
     input  wire [31:0] ms_rf_wdata,
+    input  wire        ms_csr_re,
     
     //from wb
     input  wire        ws_rf_we,
@@ -46,8 +48,6 @@ module ID_stage(
     output wire [ 7:0] mem_inst,//
     
     input wire wb_ex,
-    input wire ms_csr_re,
-    input wire es_csr_re,
     output wire ds_csr_re,
     input wire [80:0] ms_ex_zip,//{ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, inst_syscall, inst_ertn}
     input wire [80:0] es_ex_zip,//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, inst_syscall, inst_ertn}
@@ -59,12 +59,8 @@ reg  ds_valid;
 wire ds_stop;
 reg  [31:0] ds_inst;
 
-
-
 wire        ds_src1_is_pc;
 wire        ds_src2_is_imm;
-
-
 
 wire        dst_is_r1; //for bl
 wire        gr_we;     //general register write enable

@@ -95,7 +95,7 @@ module csr(
     // 定时中断清除
     wire [31: 0] csr_ticlr_data;
 
-    assign has_int = (~|(csr_estat_is[11:0] & csr_ecfg_lie[11:0])) & csr_crmd_ie;
+    assign has_int = (~|(csr_estat_is[12:0] & csr_ecfg_lie[12:0])) & csr_crmd_ie;
     assign ex_entry = csr_eentry_data;
     assign ertn_entry = csr_era_data;
     // CRMD的PLV、IE域
