@@ -1,7 +1,8 @@
 module alu(
-  input  wire clk,
-  input  wire resetn,
-  input  wire [18:0] alu_op,//add width for mul,div and mod
+  input  wire        clk,
+  input  wire        resetn,
+  // input  wire [11:0] alu_op,
+  input  wire [18:0] alu_op,
   input  wire [31:0] alu_src1,
   input  wire [31:0] alu_src2,
   output wire [31:0] alu_result,
@@ -28,11 +29,6 @@ wire op_div;
 wire op_divu;
 wire op_mod;
 wire op_modu;
-
-wire [63:0] mul_result;
-wire [31:0] div_result;
-wire [31:0] mod_result;
-
 
 // control code decomposition
 assign op_add  = alu_op[ 0];
@@ -67,7 +63,9 @@ wire [31:0] lui_result;
 wire [31:0] sll_result;
 wire [63:0] sr64_result;
 wire [31:0] sr_result;
-
+wire [31:0] mod_result;
+wire [31:0] div_result;
+wire [63:0] mul_result;
 
 // 32-bit adder
 wire [31:0] adder_a;
@@ -75,6 +73,20 @@ wire [31:0] adder_b;
 wire        adder_cin;
 wire [31:0] adder_result;
 wire        adder_cout;
+
+wire        div_en;
+wire        div_complete;
+wire        mul_en;
+reg         mul_complete;
+
+always @(posedge clk) begin
+  if(~resetn)
+    mul_complete <= 1'b0;
+  else if(mul_en & ~mul_complete)
+    mul_complete <= 1'b1;
+  else
+    mul_complete <= 1'b0;
+end
 
 assign adder_a   = alu_src1;
 assign adder_b   = (op_sub | op_slt | op_sltu) ? ~alu_src2 : alu_src2;  //src1 - src2 rj-rk
@@ -93,34 +105,24 @@ assign slt_result[0]    = (alu_src1[31] & ~alu_src2[31])
 assign sltu_result[31:1] = 31'b0;
 assign sltu_result[0]    = ~adder_cout;
 
-/* answer
- * bug：or运算逻辑错误
- */
 // bitwise operation
 assign and_result = alu_src1 & alu_src2;
-assign or_result  = alu_src1 | alu_src2;
+assign or_result  = alu_src1 | alu_src2 ;
 assign nor_result = ~or_result;
 assign xor_result = alu_src1 ^ alu_src2;
 assign lui_result = alu_src2;
 
-/* answer
- * bug：移位的操作数错误
- */
 // SLL result
+// assign sll_result = alu_src2 << alu_src1[4:0];   //rj << i5
 assign sll_result = alu_src1 << alu_src2[4:0];   //rj << i5
+
 
 // SRL, SRA result
 assign sr64_result = {{32{op_sra & alu_src1[31]}}, alu_src1[31:0]} >> alu_src2[4:0]; //rj >> i5
 
-/* answer
- * bug：位宽错误
- */
 assign sr_result   = sr64_result[31:0];
 
-
-
-//乘法器和除法器的例化调用
-mul u_mul(
+Wallace_Mul u_mul(
     .mul_clk(clk),
     .resetn(resetn),
     .mul_signed(op_mulh|op_mul),
@@ -128,38 +130,35 @@ mul u_mul(
     .B(alu_src2),
     .result(mul_result)
 );
-
-// DIV, MOD result
-div u_div(
+assign mul_en = op_mul | op_mulh | op_mulhu;
+assign div_en = op_mod | op_modu | op_div | op_divu;
+Div u_div(
     .div_clk(clk),
     .resetn(resetn),
-    .div(op_div|op_mod|op_divu|op_modu),
-    .div_signed(op_div|op_mod),
+    .div(div_en),
+    .div_signed(op_mod | op_div),
     .x(alu_src1),
     .y(alu_src2),
-    .q(div_result),
+    .s(div_result),
     .r(mod_result),
-    .complete(complete)
+    .complete(div_complete)
 );
 
-
-
-
 // final result mux
-assign alu_result = ({32{op_add|op_sub   }} & add_sub_result)
-                  | ({32{op_slt          }} & slt_result)
-                  | ({32{op_sltu         }} & sltu_result)
-                  | ({32{op_and          }} & and_result)
-                  | ({32{op_nor          }} & nor_result)
-                  | ({32{op_or           }} & or_result)
-                  | ({32{op_xor          }} & xor_result)
-                  | ({32{op_lui          }} & lui_result)
-                  | ({32{op_sll          }} & sll_result)
-                  | ({32{op_srl|op_sra   }} & sr_result)
-                  | ({32{op_mul          }} & mul_result[31:0])
-                  | ({32{op_mulh|op_mulhu}} & mul_result[63:32])
-                  | ({32{op_div|op_divu  }} & div_result)
-                  | ({32{op_mod|op_modu  }} & mod_result);
+assign alu_result = ({32{op_add|op_sub}} & add_sub_result)
+                  | ({32{op_slt       }} & slt_result)
+                  | ({32{op_sltu      }} & sltu_result)
+                  | ({32{op_and       }} & and_result)
+                  | ({32{op_nor       }} & nor_result)
+                  | ({32{op_or        }} & or_result)
+                  | ({32{op_xor       }} & xor_result)
+                  | ({32{op_lui       }} & lui_result)
+                  | ({32{op_sll       }} & sll_result)
+                  | ({32{op_srl|op_sra}} & sr_result)
+                  | ({32{op_mod|op_modu}} & mod_result)
+                  | ({32{op_div|op_divu}} & div_result)
+                  | ({32{op_mul       }} & mul_result[31:0])
+                  | ({32{op_mulh|op_mulhu}} & mul_result[63:32]);
 
-
+assign complete = ~resetn | div_complete & div_en | mul_complete & mul_en | ~div_en & ~mul_en;
 endmodule
