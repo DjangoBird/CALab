@@ -67,7 +67,7 @@ wire        wb_ale_ex;
 
 
 assign ws_ready_go    = 1'b1;
-assign ws_allowin     = !ws_valid || ws_ready_go;
+assign ws_allowin     = (!ws_valid || ws_ready_go) & (~wb_ex);
 always @(posedge clk) begin
     if (!resetn)
         ws_valid <= 1'b0;
@@ -107,7 +107,7 @@ assign ws_rf_wdata = csr_re ? csr_rvalue : ws_from_ms_wdata;
 
 //exception
 assign {csr_we, csr_wmask, csr_wvalue, csr_num, ertn_flush, wb_has_int, wb_adef_ex, wb_sys_ex, wb_brk_ex, wb_ine_ex, wb_ale_ex} = ws_ex_zip & {86{ws_valid}};
-assign wb_ex = (wb_adef_ex | wb_sys_ex | wb_brk_ex | wb_ine_ex | wb_ale_ex) & ws_valid;
+assign wb_ex = (wb_adef_ex | wb_sys_ex | wb_brk_ex | wb_ine_ex | wb_ale_ex | wb_has_int) & ws_valid;
 assign wb_ecode = wb_has_int ? `ECODE_INT :
                   wb_adef_ex ? `ECODE_ADEF :
                   wb_sys_ex  ? `ECODE_SYS :

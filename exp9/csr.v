@@ -81,7 +81,7 @@ module csr(
     // TVAL
     wire [31:0] tcfg_next_value ;
     reg  [31:0] timer_cnt ;
-    wire [31:0] csr_tval_timeval;
+    //wire [31:0] csr_tval_timeval;
     wire [31:0] csr_tval_rvalue ;
 
     // TICLR
@@ -99,7 +99,8 @@ module csr(
     // 定时中断清除
     wire [31: 0] csr_ticlr_data;
 
-    assign has_int = (~|(csr_estat_is[12:0] & csr_ecfg_lie[12:0])) & csr_crmd_ie;
+    assign has_int = (|(csr_estat_is[12:0] & csr_ecfg_lie[12:0])) & csr_crmd_ie;
+    assign has_int = (|(csr_estat_is[12:0] & csr_ecfg_lie[12:0])) && (csr_crmd_ie == 1'b1);
     assign ex_entry = csr_eentry_data;
     assign ertn_entry = csr_era_data;
     
@@ -166,7 +167,7 @@ module csr(
         csr_estat_is[9:2] <= hw_int_in[7:0]; //硬中断
         csr_estat_is[ 10] <= 1'b0;
 
-        csr_estat_is[ 11] <= 1'b0;
+        //csr_estat_is[ 11] <= 1'b0;
         if (timer_cnt[31:0] == 32'b0) begin
             csr_estat_is[11] <= 1'b1;
         end
@@ -287,7 +288,7 @@ module csr(
     assign csr_badv_rvalue   =  csr_badv_vaddr;
     assign csr_tid_rvalue    =  csr_tid_tid ;
     assign csr_tcfg_rvalue   =  {csr_tcfg_initval, csr_tcfg_periodic, csr_tcfg_en};
-    assign csr_tval_rvalue   =  csr_tval_timeval;
+    assign csr_tval_rvalue   =  csr_tval;
     assign csr_ticlr_rvalue  =  {31'b0, csr_ticlr_clr};
 
     
