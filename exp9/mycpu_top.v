@@ -166,7 +166,7 @@ ID_stage u_ID_stage(
     //from es
     .es_rf_we       (es_rf_we       ),
     .es_rf_waddr    (es_rf_waddr    ),
-    .es_alu_result  (es_alu_result  ),
+    .es_result  (es_result  ),
     .es_res_from_mem(es_res_from_mem),
     //from mem
     .ms_rf_we       (ms_rf_we       ),

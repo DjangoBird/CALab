@@ -41,7 +41,7 @@ wire [31:0] nextpc;
 assign seq_pc = fs_pc + 32'h4;
 assign nextpc = wb_ex ? ex_entry:
                 ertn_flush ? ertn_entry:
-                br_taken ? br_target : seq_pc;//异常 or 冲刷 or 跳转 or 顺序
+                br_taken ? br_target : seq_pc;//异常 or 返回 or 跳转 or 顺序
 
 assign fs_ready_go  = 1'b1;
 assign fs_allowin   = !fs_valid | (fs_ready_go && ds_allowin) | ertn_flush | wb_ex;

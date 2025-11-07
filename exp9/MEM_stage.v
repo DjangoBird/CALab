@@ -49,8 +49,6 @@ wire  [31:0] ms_mem_result;
 
 wire [31:0] shift_rdata;//
 
-//reg [85:0] ms_ex_zip_reg;
-
 wire        ms_csr_we;
 wire [31:0] ms_csr_wmask;
 wire [31:0] ms_csr_wvalue;
@@ -113,9 +111,6 @@ always @(posedge clk) begin
     end
 end
 
-//assign {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex} = ms_ex_zip_reg;
-
-//assign ms_ex_zip = {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex};
 
 assign {op_ld_b, op_ld_bu,op_ld_h, op_ld_hu, op_ld_w} = ms_ld_inst;
 assign shift_rdata = {24'b0,data_sram_rdata} >> {ms_result[1:0],3'b0};//

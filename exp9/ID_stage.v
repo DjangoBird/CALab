@@ -34,7 +34,7 @@ module ID_stage(
     //from es
     input  wire        es_rf_we,
     input  wire [ 4:0] es_rf_waddr,
-    input  wire [31:0] es_alu_result,
+    input  wire [31:0] es_result,
     input  wire        es_res_from_mem,
     input  wire        es_csr_re,
     
@@ -214,8 +214,8 @@ assign ds_to_es_valid =  ds_valid & ds_ready_go&~wb_ex;
 always @(posedge clk) begin
     if (!resetn)
         ds_valid <= 1'b0;
-//    else if(wb_ex)
-//        ds_valid <= 1'b0;
+    else if(wb_ex)
+        ds_valid <= 1'b0;
     else if (br_taken)
         ds_valid <= 1'b0;
     else if (ds_allowin)
@@ -374,7 +374,7 @@ wire load   = inst_ld_b | inst_ld_h | inst_ld_w | inst_ld_bu | inst_ld_hu;
 
 wire store  = inst_st_b | inst_st_h | inst_st_w;
 
-wire excption    = inst_break | inst_syscall | inst_csrrd | inst_csrwr | inst_csrxchg | inst_ertn;
+wire exception    = inst_break | inst_syscall | inst_csrrd | inst_csrwr | inst_csrxchg | inst_ertn;
 
 wire remain  = inst_lu12i_w | inst_pcaddul2i | inst_rdcntid | inst_rdcntvl | inst_rdcntvh;
 
@@ -460,7 +460,8 @@ assign gr_we         = ~inst_st_w & ~inst_beq & ~inst_bne & ~inst_blt & ~inst_bg
                        ~inst_bltu & ~inst_bgeu & ~inst_b & ~inst_st_b & ~inst_st_h & 
                        ~inst_syscall & ~inst_ertn & ds_valid;
 assign ds_mem_we        = (inst_st_w |inst_st_b|inst_st_h) & ds_valid;
-assign dest          = dst_is_r1 ? 5'd1 : rd;
+assign dest          = dst_is_r1 ? 5'd1 : 
+                    inst_rdcntid ? rj   : rd;
 
 
 
@@ -497,28 +498,27 @@ assign need_r2         = ~ds_src2_is_imm & ((ds_alu_op != 18'b0) | branch_cond);
 
 //bypass
 
-assign rj_value  = conflict_rs1_ex  ? es_alu_result :
+assign rj_value  = conflict_rs1_ex  ? es_result :
                    conflict_rs1_mem ? ms_rf_wdata :
                    conflict_rs1_wb  ? ws_rf_wdata :
                                       rf_rdata1;
-assign rkd_value = conflict_rs2_ex  ? es_alu_result :
+assign rkd_value = conflict_rs2_ex  ? es_result :
                    conflict_rs2_mem ? ms_rf_wdata :
                    conflict_rs2_wb  ? ws_rf_wdata :
                                       rf_rdata2;
  //exception
  assign ds_csr_re     = inst_csrrd | inst_csrwr | inst_csrxchg | inst_rdcntid;
  assign ds_csr_we     = inst_csrwr | inst_csrxchg;
- //assign ds_csr_wmask  = {32{inst_csrxchg}} & rj_value | {32{inst_csrwr}};
  assign ds_csr_wmask  =inst_csrxchg ? rj_value : 32'hffffffff;
  assign ds_csr_wvalue = rkd_value;
  assign ds_csr_num    = inst_ertn ? `CSR_ERA : 
-                                  inst_syscall ? `CSR_EENTRY :
-                                  inst_rdcntid ? `CSR_TID : 
-                                  ds_inst[23:10];
+                        inst_syscall ? `CSR_EENTRY :
+                        inst_rdcntid ? `CSR_TID : 
+                        ds_inst[23:10];
  
  wire   ds_sys_ex = inst_syscall;
  wire   ds_brk_ex = inst_break;
- wire   ds_ine_ex = ~(cal | cal_i | branch_uncond | branch_cond | load | store | excption | remain) & ds_valid;
+ wire   ds_ine_ex = ~(cal | cal_i | branch_uncond | branch_cond | load | store | exception | remain) & ds_valid;
 
  
  assign ds_ex_zip = {ds_csr_we, ds_csr_wmask, ds_csr_wvalue, ds_csr_num, inst_ertn, has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex};
