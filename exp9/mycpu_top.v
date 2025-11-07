@@ -175,6 +175,8 @@ ID_stage u_ID_stage(
 
     .mem_inst       (mem_inst       ),
     
+    .es_ex          (es_ex),
+    .ms_ex          (ms_ex),
     .wb_ex          (wb_ex|ertn_flush),
     .ms_csr_re      (ms_csr_re),
     .es_csr_re      (es_csr_re),
@@ -226,6 +228,7 @@ EX_stage u_EX_stage(
     
     .ms_ex(ms_ex),
     .wb_ex(wb_ex|ertn_flush),
+    .es_ex(es_ex),
     
     .ds_csr_re(ds_csr_re),
     .es_csr_re(es_csr_re),

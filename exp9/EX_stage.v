@@ -41,6 +41,8 @@ module EX_stage(
     
     input  wire        ms_ex,
     input  wire        wb_ex,
+    //input  wire        wb_ertn,
+    output wire        es_ex,
     
     input wire ds_csr_re,
     output reg es_csr_re,
@@ -94,11 +96,11 @@ reg [63:0] time_counter;
     end
 
 
-assign es_ex       = (|es_ex_zip_reg[5:1]) | es_ale_ex;//[has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex]|es_ale_ex
+assign es_ex       = (|es_ex_zip_reg[5:0]) | es_ale_ex;//[inst_ertn,has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex]|es_ale_ex
 
 assign es_ready_go = alu_complete;
-assign es_allowin  = !es_valid || es_ready_go && ms_allowin;
-assign es_to_ms_valid = es_valid && es_ready_go;
+assign es_allowin  = !es_valid || es_ready_go && ms_allowin | wb_ex;
+assign es_to_ms_valid = es_valid && es_ready_go & ~wb_ex;
 
 always @(posedge clk) begin
     if (!resetn)
@@ -175,10 +177,10 @@ assign es_mem_we[3]     = op_st_w | op_st_h &  es_alu_result[1] | op_st_b &  es_
 assign {op_st_b,op_st_h,op_st_w} = es_st_inst;
 assign {op_ld_b,op_ld_bu,op_ld_h,op_ld_hu,op_ld_w} = es_ld_inst;
 
-assign data_sram_en    = es_valid && (es_mem_we || es_res_from_mem);
+assign data_sram_en    = es_valid && ((|es_mem_we) || es_res_from_mem) & ~es_ex & ~ms_ex & ~wb_ex;
 assign data_sram_we     = {4{es_valid & ~es_ex & ~ms_ex & ~wb_ex}} & es_mem_we;//发生异常时不可访存
                         
-assign data_sram_addr  = es_alu_result;
+assign data_sram_addr  = {es_alu_result[31:2],2'b0};
 //assign data_sram_wdata = es_rkd_value;
 assign data_sram_wdata[ 7: 0]   = es_rkd_value[ 7: 0];
 assign data_sram_wdata[15: 8]   = op_st_b ? es_rkd_value[ 7: 0] : es_rkd_value[15: 8];

@@ -1,3 +1,4 @@
+`include "cpuhead.h"
 module ID_stage(
     input wire         clk,
     input wire         resetn,
@@ -51,6 +52,8 @@ module ID_stage(
     output wire [ 7:0] mem_inst,//
     
     input wire wb_ex,
+    input wire es_ex,
+    input wire ms_ex,
     output wire ds_csr_re,
 
     output wire [84:0] ds_ex_zip,//{ds_csr_we, ds_csr_wmask, ds_csr_wvalue, ds_csr_num, has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex, inst_ertn}
@@ -202,17 +205,17 @@ reg ds_adef_ex;
 //handsake
 /////////////////////////////////////////////////////////
 assign ds_ready_go    = !ds_stop;
-assign ds_allowin     = !ds_valid | ds_ready_go & es_allowin;
+assign ds_allowin     = !ds_valid | ds_ready_go & es_allowin | wb_ex;
 //load-risk
 assign ds_stop        = ( ( (conflict_rs1_ex & need_r1) | (conflict_rs2_ex & need_r2) ) & (es_res_from_mem | es_csr_re) )|
                         ( (conflict_rs1_mem | conflict_rs2_mem) & ms_csr_re);
-assign ds_to_es_valid =  ds_valid & ds_ready_go;
+assign ds_to_es_valid =  ds_valid & ds_ready_go&~wb_ex;
 
 always @(posedge clk) begin
     if (!resetn)
         ds_valid <= 1'b0;
-    else if(wb_ex)
-        ds_valid <= 1'b0;
+//    else if(wb_ex)
+//        ds_valid <= 1'b0;
     else if (br_taken)
         ds_valid <= 1'b0;
     else if (ds_allowin)
@@ -243,7 +246,8 @@ assign rj_eq_rd = (rj_value == rkd_value);
 assign rj_less_rd = ($signed(rj_value) < $signed(rkd_value));
 assign rj_less_rd_u = (rj_value < rkd_value);
 
-assign br_taken = (   inst_beq  &&  rj_eq_rd
+assign br_taken = ds_stop ? 1'b0 :
+                    (   inst_beq  &&  rj_eq_rd
                    || inst_bne  && !rj_eq_rd
                    || inst_blt  &&  rj_less_rd
                    || inst_bge  && !rj_less_rd
@@ -454,7 +458,7 @@ assign dst_is_r1     = inst_bl;
 
 assign gr_we         = ~inst_st_w & ~inst_beq & ~inst_bne & ~inst_blt & ~inst_bge & 
                        ~inst_bltu & ~inst_bgeu & ~inst_b & ~inst_st_b & ~inst_st_h & 
-                       ~inst_syscall & ds_valid;
+                       ~inst_syscall & ~inst_ertn & ds_valid;
 assign ds_mem_we        = (inst_st_w |inst_st_b|inst_st_h) & ds_valid;
 assign dest          = dst_is_r1 ? 5'd1 : rd;
 
@@ -504,9 +508,13 @@ assign rkd_value = conflict_rs2_ex  ? es_alu_result :
  //exception
  assign ds_csr_re     = inst_csrrd | inst_csrwr | inst_csrxchg | inst_rdcntid;
  assign ds_csr_we     = inst_csrwr | inst_csrxchg;
- assign ds_csr_wmask  = {32{inst_csrxchg}} & rj_value | {32{inst_csrwr}};
+ //assign ds_csr_wmask  = {32{inst_csrxchg}} & rj_value | {32{inst_csrwr}};
+ assign ds_csr_wmask  =inst_csrxchg ? rj_value : 32'hffffffff;
  assign ds_csr_wvalue = rkd_value;
- assign ds_csr_num    = ds_inst[23:10];
+ assign ds_csr_num    = inst_ertn ? `CSR_ERA : 
+                                  inst_syscall ? `CSR_EENTRY :
+                                  inst_rdcntid ? `CSR_TID : 
+                                  ds_inst[23:10];
  
  wire   ds_sys_ex = inst_syscall;
  wire   ds_brk_ex = inst_break;

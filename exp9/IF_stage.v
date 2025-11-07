@@ -44,8 +44,8 @@ assign nextpc = wb_ex ? ex_entry:
                 br_taken ? br_target : seq_pc;//异常 or 冲刷 or 跳转 or 顺序
 
 assign fs_ready_go  = 1'b1;
-assign fs_allowin   = !fs_valid | (fs_ready_go && ds_allowin) | ertn_flush |wb_ex;
-assign fs_to_ds_valid = fs_valid && fs_ready_go;
+assign fs_allowin   = !fs_valid | (fs_ready_go && ds_allowin) | ertn_flush | wb_ex;
+assign fs_to_ds_valid = fs_valid && fs_ready_go && ~(wb_ex|ertn_flush);
 assign to_fs_valid = resetn;
 
 always @(posedge clk) begin
@@ -53,6 +53,8 @@ always @(posedge clk) begin
         fs_valid <= 1'b0;
     else if (fs_allowin)
         fs_valid <= to_fs_valid;
+    else if (br_taken)
+        fs_valid <= 1'b0;
 end
 
 assign inst_sram_en    = resetn & fs_allowin;

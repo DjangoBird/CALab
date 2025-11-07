@@ -66,11 +66,11 @@ wire        ms_ale_ex;
 
 
 
-assign ms_ex = (|ms_ex_zip[5:0]);
+assign ms_ex = (|ms_ex_zip[6:0]);
 
 assign ms_ready_go    = 1'b1;
-assign ms_allowin     = !ms_valid || ms_ready_go && ws_allowin;
-assign ms_to_ws_valid = ms_valid && ms_ready_go;
+assign ms_allowin     = !ms_valid || ms_ready_go && ws_allowin | wb_ex;
+assign ms_to_ws_valid = ms_valid && ms_ready_go & ~wb_ex;
 always @(posedge clk) begin
     if (!resetn)
         ms_valid <= 1'b0;
@@ -118,7 +118,7 @@ end
 //assign ms_ex_zip = {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex};
 
 assign {op_ld_b, op_ld_bu,op_ld_h, op_ld_hu, op_ld_w} = ms_ld_inst;
-assign shift_rdata = {24'b0,data_sram_rdata} >> {ms_alu_result[1:0],3'b0};//
+assign shift_rdata = {24'b0,data_sram_rdata} >> {ms_result[1:0],3'b0};//
 assign ms_mem_result[7:0] = shift_rdata[7:0];
 assign ms_mem_result[15:8]= {8{op_ld_b}} & {8{shift_rdata[7]}}|
                             {8{op_ld_bu}} & 8'b0|
@@ -128,7 +128,7 @@ assign ms_mem_result[31:16]={16{op_ld_b}} & {16{shift_rdata[7]}} |
                             {16{op_ld_bu | op_ld_hu}} & 16'b0    |
                             {16{op_ld_w}} & shift_rdata[31:16];
 
-assign ms_rf_wdata = ms_res_from_mem ? ms_mem_result : ms_alu_result;
+assign ms_rf_wdata = ms_res_from_mem ? ms_mem_result : ms_result;
 
 
 endmodule
