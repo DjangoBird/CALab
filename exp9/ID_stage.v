@@ -8,6 +8,7 @@ module ID_stage(
     output wire        ds_allowin,
     
     //to fs
+    output wire        br_stall,
     output wire        br_taken,
     output wire [31:0] br_target,
 
@@ -207,8 +208,8 @@ reg ds_adef_ex;
 assign ds_ready_go    = !ds_stop;
 assign ds_allowin     = !ds_valid | ds_ready_go & es_allowin | wb_ex;
 //load-risk
-assign ds_stop        = ( ( (conflict_rs1_ex & need_r1) | (conflict_rs2_ex & need_r2) ) & (es_res_from_mem | es_csr_re) )|
-                        ( (conflict_rs1_mem | conflict_rs2_mem) & ms_csr_re);
+assign ds_stop        = ( ( (conflict_rs1_ex & need_r1)  | (conflict_rs2_ex & need_r2)  ) & (es_res_from_mem | es_csr_re) )|
+                        ( ( (conflict_rs1_mem & need_r1) | (conflict_rs2_mem & need_r2) ) & ms_csr_re);
 assign ds_to_es_valid =  ds_valid & ds_ready_go&~wb_ex;
 
 always @(posedge clk) begin
@@ -246,6 +247,8 @@ assign rj_eq_rd = (rj_value == rkd_value);
 assign rj_less_rd = ($signed(rj_value) < $signed(rkd_value));
 assign rj_less_rd_u = (rj_value < rkd_value);
 
+assign br_stall = ds_stop & (inst_beq | inst_bne | inst_blt | inst_bge | inst_bltu | inst_bgeu | inst_jirl | inst_b | inst_bl);
+
 assign br_taken = ds_stop ? 1'b0 :
                     (   inst_beq  &&  rj_eq_rd
                    || inst_bne  && !rj_eq_rd
@@ -256,7 +259,7 @@ assign br_taken = ds_stop ? 1'b0 :
                    || inst_jirl 
                    || inst_bl
                    || inst_b
-                  ) && ds_valid;
+                  ) && ds_valid & !br_stall;
 assign br_target = (inst_beq || inst_bne || inst_bl || inst_b || inst_blt || inst_bge || inst_bltu || inst_bgeu) ? (ds_pc + br_offs) :
                                                    /*inst_jirl*/ (rj_value + jirl_offs);
 
@@ -509,7 +512,7 @@ assign rkd_value = conflict_rs2_ex  ? es_result :
  //exception
  assign ds_csr_re     = inst_csrrd | inst_csrwr | inst_csrxchg | inst_rdcntid;
  assign ds_csr_we     = inst_csrwr | inst_csrxchg;
- assign ds_csr_wmask  =inst_csrxchg ? rj_value : 32'hffffffff;
+ assign ds_csr_wmask  = inst_csrxchg ? rj_value : 32'hffffffff;
  assign ds_csr_wvalue = rkd_value;
  assign ds_csr_num    = inst_ertn ? `CSR_ERA : 
                         inst_syscall ? `CSR_EENTRY :

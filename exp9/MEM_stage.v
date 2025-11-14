@@ -13,6 +13,7 @@ module MEM_stage(
     input wire [31:0]  es_alu_result,
     input wire [ 4:0]  es_rf_waddr,
     input wire         es_rf_we,
+    input wire         es_mem_req,
     
     input wire [31:0] es_result,
     output reg [31:0] ms_result,
@@ -29,6 +30,7 @@ module MEM_stage(
     input  wire [ 4:0] es_ld_inst,//
 
     //data sram interface
+    input wire        data_sram_data_ok,
     input wire [31:0] data_sram_rdata,
     
     output wire        ms_ex,
@@ -47,7 +49,7 @@ reg  [31:0] ms_alu_result;
 reg         ms_res_from_mem;
 wire  [31:0] ms_mem_result;
 
-wire [31:0] shift_rdata;//
+wire [31:0] shift_rdata;
 
 wire        ms_csr_we;
 wire [31:0] ms_csr_wmask;
@@ -63,10 +65,17 @@ wire        ms_ertn;
 wire        ms_ale_ex;
 
 
+//类SRAM
+wire ms_wait_data_ok;
+reg  ms_wait_data_ok_reg;
+
+assign ms_wait_data_ok = ms_wait_data_ok_reg & ms_valid & !wb_ex;
+
 
 assign ms_ex = (|ms_ex_zip[6:0]);
 
-assign ms_ready_go    = 1'b1;
+//指令接收数据要等待数据返回握手完成（data_ok正在或者已经为1）
+assign ms_ready_go    = !ms_wait_data_ok | ms_wait_data_ok & data_sram_data_ok;
 assign ms_allowin     = !ms_valid || ms_ready_go && ws_allowin | wb_ex;
 assign ms_to_ws_valid = ms_valid && ms_ready_go & ~wb_ex;
 always @(posedge clk) begin
@@ -86,7 +95,7 @@ always @(posedge clk) begin
         ms_rf_waddr      <= 5'b0;
         ms_rf_we         <= 1'b0;
         ms_ld_inst       <= 5'b0;
-        
+        ms_wait_data_ok_reg <= 1'b0;
         ms_csr_re        <= 1'b0;
         ms_ex_zip        <= 86'b0;
         ms_result        <=32'b0;
@@ -98,12 +107,11 @@ always @(posedge clk) begin
         ms_rf_waddr     <= es_rf_waddr;
         ms_rf_we        <= es_rf_we;
         ms_ld_inst      <= es_ld_inst;
-        
-    // pass through csr read request and exception zip when transfer occurs
-    ms_csr_re        <= es_csr_re;
-    ms_ex_zip        <= es_ex_zip;
-    ms_result       <=es_result;
-    
+        ms_wait_data_ok_reg <= es_mem_req;
+        // pass through csr read request and exception zip when transfer occurs
+        ms_csr_re        <= es_csr_re;
+        ms_ex_zip        <= es_ex_zip;
+        ms_result       <=es_result;
     end
     else if(ms_allowin) begin
         ms_rf_we        <= 1'b0;

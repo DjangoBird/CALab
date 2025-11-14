@@ -2,16 +2,24 @@ module mycpu_top(
     input  wire        clk,
     input  wire        resetn,
     // inst sram interface
-    output wire        inst_sram_en,
-    output wire [ 3:0] inst_sram_we,
+    output wire        inst_sram_req,
+    output wire        inst_sram_wr,
+    output wire [ 3:0] inst_sram_wstrb,
+    output wire [ 1:0] inst_sram_size,
     output wire [31:0] inst_sram_addr,
     output wire [31:0] inst_sram_wdata,
+    input  wire        inst_sram_addr_ok,
+    input  wire        inst_sram_data_ok,
     input  wire [31:0] inst_sram_rdata,
     // data sram interface
-    output wire        data_sram_en,
-    output wire [ 3:0] data_sram_we,
+    output wire        data_sram_req,
+    output wire        data_sram_wr,
+    output wire [ 3:0] data_sram_wstrb,
+    output wire [ 1:0] data_sram_size,
     output wire [31:0] data_sram_addr,
     output wire [31:0] data_sram_wdata,
+    input  wire        data_sram_addr_ok,
+    input  wire        data_sram_data_ok,
     input  wire [31:0] data_sram_rdata,
     // trace debug interface
     output wire [31:0] debug_wb_pc,
@@ -35,6 +43,7 @@ wire [31:0] es_pc;
 wire ms_to_ws_valid;
 wire [31:0] ms_pc;
 
+wire br_stall;
 wire br_taken;
 wire [31:0] br_target;
 
@@ -115,13 +124,18 @@ IF_stage u_IF_stage(
     .fs_inst        (fs_inst        ),
     .fs_pc          (fs_pc          ),
     //br
+    .br_stall       (br_stall       ),
     .br_taken       (br_taken       ),
     .br_target      (br_target      ),
     //inst sram interface
-    .inst_sram_en   (inst_sram_en   ),
-    .inst_sram_we   (inst_sram_we   ),
+    .inst_sram_req  (inst_sram_req  ),
+    .inst_sram_wr   (inst_sram_wr   ),
+    .inst_sram_wstrb(inst_sram_wstrb),
+    .inst_sram_size (inst_sram_size ),
     .inst_sram_addr (inst_sram_addr ),
     .inst_sram_wdata(inst_sram_wdata),
+    .inst_sram_addr_ok(inst_sram_addr_ok),
+    .inst_sram_data_ok(inst_sram_data_ok),
     .inst_sram_rdata(inst_sram_rdata),
     
     .wb_ex(wb_ex),
@@ -139,6 +153,7 @@ ID_stage u_ID_stage(
     .es_allowin     (es_allowin     ),
     .ds_allowin     (ds_allowin     ),
     //to fs
+    .br_stall       (br_stall       ),
     .br_taken       (br_taken       ),
     .br_target      (br_target      ),
     //from fs
@@ -215,16 +230,19 @@ EX_stage u_EX_stage(
     .es_to_ms_valid (es_to_ms_valid ),
     .es_pc          (es_pc          ),
     .es_alu_result  (es_alu_result  ),
-    
+    .es_mem_req     (es_mem_req     ),
     .es_result      (es_result      ),
     .es_rf_we       (es_rf_we       ),
     .es_rf_waddr    (es_rf_waddr    ),
     .es_res_from_mem(es_res_from_mem),
     //data sram interface
-    .data_sram_en   (data_sram_en   ),
-    .data_sram_we   (data_sram_we  ),
+    .data_sram_req  (data_sram_req  ),
+    .data_sram_wr   (data_sram_wr   ),
+    .data_sram_wstrb(data_sram_wstrb),
+    .data_sram_size (data_sram_size ),
     .data_sram_addr (data_sram_addr ),
     .data_sram_wdata(data_sram_wdata),
+    .data_sram_addr_ok(data_sram_addr_ok),
     
     .ms_ex(ms_ex),
     .wb_ex(wb_ex|ertn_flush),
@@ -253,7 +271,7 @@ MEM_stage u_MEM_stage(
     .es_rf_we       (es_rf_we       ),
     .es_rf_waddr    (es_rf_waddr    ),
     .es_res_from_mem(es_res_from_mem),
-    
+    .es_mem_req     (es_mem_req     ),
     .es_result(es_result),
     .ms_result(ms_result),
     //to ws
@@ -267,7 +285,8 @@ MEM_stage u_MEM_stage(
 
     //from data sram
     .data_sram_rdata(data_sram_rdata),
-    
+    .data_sram_data_ok(data_sram_data_ok),
+
     .ms_ex(ms_ex),
     .wb_ex(wb_ex|ertn_flush),
     

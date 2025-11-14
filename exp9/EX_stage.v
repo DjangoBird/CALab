@@ -23,6 +23,7 @@ module EX_stage(
     //to ms
     output wire        es_to_ms_valid,
     output reg  [31:0] es_pc,
+    output wire        es_mem_req,
 
     //to id: for load-use
     output reg         es_rf_we,
@@ -34,10 +35,13 @@ module EX_stage(
     output wire [31:0] es_result, //考虑时钟数据的result
 
     //data sram interface
-    output wire        data_sram_en,
-    output wire [ 3:0] data_sram_we,
+    output wire        data_sram_req,
+    output wire        data_sram_wr,
+    output wire [ 3:0] data_sram_wstrb,
+    output wire [ 1:0] data_sram_size,
     output wire [31:0] data_sram_addr,
     output wire [31:0] data_sram_wdata,
+    input  wire [31:0] data_sram_addr_ok,
     
     input  wire        ms_ex,
     input  wire        wb_ex,
@@ -98,7 +102,7 @@ reg [63:0] time_counter;
 
 assign es_ex       = (|es_ex_zip_reg[5:0]) | es_ale_ex;//[inst_ertn,has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex]|es_ale_ex
 
-assign es_ready_go = alu_complete;
+assign es_ready_go = alu_complete & (!data_sram_req | data_sram_addr_ok);//alu完成且访存握手成功
 assign es_allowin  = !es_valid || es_ready_go && ms_allowin | wb_ex;
 assign es_to_ms_valid = es_valid && es_ready_go & ~wb_ex;
 
@@ -177,11 +181,14 @@ assign es_mem_we[3]     = op_st_w | op_st_h &  es_alu_result[1] | op_st_b &  es_
 assign {op_st_b,op_st_h,op_st_w} = es_st_inst;
 assign {op_ld_b,op_ld_bu,op_ld_h,op_ld_hu,op_ld_w} = es_ld_inst;
 
-assign data_sram_en    = es_valid && ((|es_mem_we) || es_res_from_mem) & ~es_ex & ~ms_ex & ~wb_ex;
-assign data_sram_we     = {4{es_valid & ~es_ex & ~ms_ex & ~wb_ex}} & es_mem_we;//发生异常时不可访存
-                        
-assign data_sram_addr  = {es_alu_result[31:2],2'b0};
-//assign data_sram_wdata = es_rkd_value;
+assign es_mem_req       = ((|es_mem_we) || es_res_from_mem);
+assign data_sram_req    = es_valid && es_mem_req & ~es_ex & ~ms_ex & ~wb_ex;
+assign data_sram_wr     = es_valid & ~es_ex & ~ms_ex & ~wb_ex & (|data_sarm_wstrb);//发生异常时不可访存
+assign data_sram_wstrb  = es_mem_we;
+assign data_sram_size   = op_ld_b | op_st_b ? 2'b00 :
+                          op_ld_h | op_ld_hu | op_st_h ? 2'b01 :
+                          2'b10;
+assign data_sram_addr  = es_alu_result;//不用对齐
 assign data_sram_wdata[ 7: 0]   = es_rkd_value[ 7: 0];
 assign data_sram_wdata[15: 8]   = op_st_b ? es_rkd_value[ 7: 0] : es_rkd_value[15: 8];
 assign data_sram_wdata[23:16]   = op_st_w ? es_rkd_value[23:16] : es_rkd_value[ 7: 0];

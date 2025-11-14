@@ -15,7 +15,7 @@ module WB_stage(
     
     //to id: for write back
     output wire         ws_rf_we,
-    output reg  [ 4:0] ws_rf_waddr,
+    output reg  [ 4:0]  ws_rf_waddr,
     output wire  [31:0] ws_rf_wdata,
 
     //trace debug
@@ -96,10 +96,10 @@ always @(posedge clk) begin
         ws_rf_waddr <= ms_rf_waddr;
         ws_rf_we_reg    <= ms_rf_we;
         
-    // accept csr read request and exception zip from MS when transfer occurs
-    csr_re    <= ms_csr_re;
-    ws_ex_zip <= ms_ex_zip;
-    wb_vaddr <= ms_result;
+        // accept csr read request and exception zip from MS when transfer occurs
+        csr_re    <= ms_csr_re;
+        ws_ex_zip <= ms_ex_zip;
+        wb_vaddr <= ms_result;
         
     end
     else if(ws_allowin) begin
@@ -127,8 +127,6 @@ assign wb_esubcode = 9'b0;
 assign ipi_int_in   = 1'b0;
 assign hw_int_in    = 8'b0;
 assign coreid_in    = 32'b0;
-
-
 
 assign debug_wb_pc       = wb_pc;
 assign debug_wb_rf_we    = {4{ws_rf_we_reg & ws_valid & ~wb_ex}};
