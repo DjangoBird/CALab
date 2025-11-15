@@ -85,7 +85,7 @@ always @(posedge clk) begin
         fs_valid <= 1'b0;
     else if (fs_allowin)
         fs_valid <= to_fs_valid;
-    else if (br_taken)
+    else if (fs_cancel)
         fs_valid <= 1'b0;
 end
 
@@ -150,7 +150,6 @@ assign nextpc = wb_ex_reg ? ex_entry_reg:
                 br_taken ? br_target : seq_pc;//异常 or 返回 or 跳转 or 顺序
 
 assign fs_inst = fs_inst_buf_valid ? fs_inst_buf : inst_sram_rdata; 
-
 
 
 assign inst_sram_req   = resetn & fs_allowin & !br_stall & !pf_cancel;//只有IF阶段发出请求

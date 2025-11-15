@@ -116,6 +116,7 @@ always @(posedge clk) begin
     else if(ms_allowin) begin
         ms_rf_we        <= 1'b0;
         ms_res_from_mem <= 1'b0;
+        ms_wait_data_ok_reg <= 1'b0;
     end
 end
 
