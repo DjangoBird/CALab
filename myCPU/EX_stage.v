@@ -103,7 +103,7 @@ reg [63:0] time_counter;
 assign es_ex       = (|es_ex_zip_reg[5:0]) | es_ale_ex;//[inst_ertn,has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex]|es_ale_ex
 
 assign es_ready_go = alu_complete & (!data_sram_req | data_sram_req & data_sram_addr_ok);//alu完成且访存握手成功
-assign es_allowin = (!es_valid) || (es_ready_go && ms_allowin) || wb_ex;
+assign es_allowin  = !es_valid || es_ready_go && ms_allowin | wb_ex;
 assign es_to_ms_valid = es_valid && es_ready_go & ~wb_ex;
 
 always @(posedge clk) begin
@@ -182,7 +182,7 @@ assign {op_st_b,op_st_h,op_st_w} = es_st_inst;
 assign {op_ld_b,op_ld_bu,op_ld_h,op_ld_hu,op_ld_w} = es_ld_inst;
 
 assign es_mem_req       = ((|es_mem_we) || es_res_from_mem);
-assign data_sram_req    = es_valid && es_mem_req & ~es_ex & ~ms_ex & ~wb_ex & ms_allowin;
+assign data_sram_req    = es_valid && es_mem_req & ms_allowin;
 assign data_sram_wr     = es_valid & ~es_ex & ~ms_ex & ~wb_ex & (|data_sram_wstrb);//发生异常时不可访存
 assign data_sram_wstrb  = es_mem_we;
 assign data_sram_size   = op_ld_b | op_st_b ? 2'b00 :

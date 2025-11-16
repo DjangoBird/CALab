@@ -134,6 +134,5 @@ assign ms_mem_result[31:16]={16{op_ld_b}} & {16{shift_rdata[7]}} |
 
 assign ms_rf_wdata = ms_res_from_mem ? ms_mem_result : ms_result;
 
-
 endmodule
 

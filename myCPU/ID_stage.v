@@ -206,11 +206,11 @@ reg ds_adef_ex;
 //handsake
 /////////////////////////////////////////////////////////
 assign ds_ready_go    = !ds_stop;
-assign ds_allowin     = !ds_valid | ds_ready_go & es_allowin | wb_ex;
+assign ds_allowin     = !ds_valid | (ds_ready_go & es_allowin) | wb_ex;
 //load-risk
 assign ds_stop        = ( ( (conflict_rs1_ex & need_r1)  | (conflict_rs2_ex & need_r2)  ) & (es_res_from_mem | es_csr_re) )|
                         ( ( (conflict_rs1_mem & need_r1) | (conflict_rs2_mem & need_r2) ) & ms_csr_re);
-assign ds_to_es_valid =  ds_valid & ds_ready_go&~wb_ex;
+assign ds_to_es_valid =  ds_valid & ds_ready_go & ~wb_ex;
 
 always @(posedge clk) begin
     if (!resetn)

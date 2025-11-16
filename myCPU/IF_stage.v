@@ -76,10 +76,11 @@ always @(posedge clk) begin
 end
 
 assign fs_ready_go  = (inst_sram_data_ok | fs_inst_buf_valid) & !inst_discard;//有指令
-assign fs_allowin   = !fs_valid | (fs_ready_go && ds_allowin);
-assign fs_to_ds_valid = fs_valid && fs_ready_go;
+assign fs_allowin   = (!fs_valid) | (fs_ready_go & ds_allowin);
+assign fs_to_ds_valid = fs_valid & fs_ready_go;
 assign pf_ready_go = inst_sram_req & inst_sram_addr_ok;//握手成功
 assign to_fs_valid = pf_ready_go;
+
 always @(posedge clk) begin
     if (!resetn)
         fs_valid <= 1'b0;
@@ -157,6 +158,7 @@ assign inst_sram_wr    = (|inst_sram_wstrb);
 assign inst_sram_wstrb = 4'b0;
 assign inst_sram_addr  = nextpc;
 assign inst_sram_wdata = 32'b0;
+assign inst_sram_size  = 2'b10;
 
 always @(posedge clk) begin
     if (!resetn)
