@@ -32,7 +32,10 @@ module IF_stage(
     input  wire [31:0]  ex_entry,
     input  wire [31:0]  ertn_entry,
     
-    output wire         fs_adef_ex
+    output wire         fs_adef_ex,
+
+    input wire  [ 3:0]  axi_arid //for bridge
+
 );
 
 wire pf_ready_go;
@@ -45,6 +48,8 @@ reg  fs_valid;
 wire fs_cancel;
 wire pf_cancel;
 reg  inst_discard;
+
+reg  pf_block;
 
 reg         wb_ex_reg;
 reg         ertn_flush_reg;
@@ -62,12 +67,12 @@ reg         fs_inst_buf_valid;
 
 //cancel logic
 assign fs_cancel = br_taken | wb_ex | ertn_flush;
-assign pf_cancel = 1'b0;
+assign pf_cancel = fs_cancel;//
 always @(posedge clk) begin
     if (!resetn) begin
         inst_discard <= 1'b0;
     end
-    else if (pf_cancel & to_fs_valid | fs_cancel & !fs_allowin & !fs_ready_go) begin
+    else if (pf_cancel & inst_sram_req | fs_cancel & !fs_allowin & !fs_ready_go) begin//
         inst_discard <= 1'b1;
     end
     else if (inst_discard & inst_sram_data_ok)begin
@@ -79,7 +84,7 @@ assign fs_ready_go  = (inst_sram_data_ok | fs_inst_buf_valid) & !inst_discard;//
 assign fs_allowin   = (!fs_valid) | (fs_ready_go & ds_allowin);
 assign fs_to_ds_valid = fs_valid & fs_ready_go;
 assign pf_ready_go = inst_sram_req & inst_sram_addr_ok;//握手成功
-assign to_fs_valid = pf_ready_go;
+assign to_fs_valid = pf_ready_go & ~pf_block; //&~pf_cancel
 
 always @(posedge clk) begin
     if (!resetn)
@@ -105,6 +110,18 @@ always @(posedge clk) begin
     else if (!fs_inst_buf_valid & inst_sram_data_ok & !inst_discard) begin
         fs_inst_buf_valid <= 1'b1;
         fs_inst_buf <= inst_sram_rdata;
+    end
+end
+
+always @(posedge clk)begin
+    if(!resetn)begin
+        pf_block <= 1'b0;
+    end
+    else if(pf_cancel & ~pf_block & ~axi_arid[0])begin
+        pf_block <= 1'b1;
+    end
+    else if(inst_sram_data_ok)begin
+        pf_block <= 1'b0;
     end
 end
 
@@ -153,7 +170,7 @@ assign nextpc = wb_ex_reg ? ex_entry_reg:
 assign fs_inst = fs_inst_buf_valid ? fs_inst_buf : inst_sram_rdata; 
 
 
-assign inst_sram_req   = resetn & fs_allowin & !br_stall & !pf_cancel;//只有IF阶段发出请求
+assign inst_sram_req   = resetn & fs_allowin & !br_stall & !pf_block;//只有IF阶段发出请求
 assign inst_sram_wr    = (|inst_sram_wstrb);
 assign inst_sram_wstrb = 4'b0;
 assign inst_sram_addr  = nextpc;
