@@ -130,7 +130,7 @@ always @(posedge aclk) begin
         r_current_state <= IDLE;
     end
     else begin
-        r_currentt <= r_next_state;
+        r_current_state <= r_next_state;
     end
 end
 
@@ -284,7 +284,7 @@ always @(posedge aclk)begin
     else if(ar_current_state[0])begin
         arid <= {3'b0, data_sram_req & !data_sram_wr};//0表示指令sram，1表示数据sram
         araddr <= data_sram_req & !data_sram_wr ? data_sram_addr : inst_sram_addr;
-        arsize <= datasram_req & !datasram_wr ? {1'b0,data_sram_size} : {1'b0,inst_sram_size};
+        arsize <= data_sram_req & !data_sram_wr ? {1'b0,data_sram_size} : {1'b0,inst_sram_size};
         arlen <= 8'b0;
         arburst <= 2'b01;
         arlock <= 2'b0;
@@ -328,7 +328,7 @@ assign inst_sram_rdata = buf_rdata[0];
 assign inst_sram_addr_ok = ~arid[0] & arvalid & aready;
 assign inst_sram_data_ok = ~rid_r[0] & r_current_state[2] | ~bid[0] & bvalid & bready;
 
-assign awvalid = w_current_state == W_REQ_START | w_current_state == W_DATA_RESP ? 1'b1 : 1'b0;
+assign awvalid = w_current_state == W_REQ_START | w_current_state == W_DATA_RESP ;
 always @(posedge aclk)begin
     if(~resetn)begin
         awid <= 4'b1;
@@ -341,7 +341,7 @@ always @(posedge aclk)begin
         awprot <= 3'b0;
     end
     else if(w_current_state[0])begin
-        awaddr <= data_sram_wr ? data_sram_addr : inst_sram_addrl
+        awaddr <= data_sram_wr ? data_sram_addr : inst_sram_addr;
         awsize <= data_sram_wr ? {1'b0,data_sram_size} : {1'b0,inst_sram_size};
         awid <= 4'b1;
         awlen <=8'b0;
@@ -358,13 +358,13 @@ always @(posedge aclk)begin
         wid <= 4'b1;
         wdata <= 32'b0;
         wstrb <= 4'b0;
-        w_last <= 1'b1;
+        wlast <= 1'b1;
     end
     else if(w_current_state[0])begin
         wstrb <= data_sram_wstrb;
         wdata <= data_sram_wdata;
         wid <= 4'b1;
-        w_last <= 1'b1;
+        wlast <= 1'b1;
     end
 end
 

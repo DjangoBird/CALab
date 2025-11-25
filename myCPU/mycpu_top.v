@@ -47,29 +47,99 @@ module mycpu_top(
     output wire [31:0] debug_wb_rf_wdata
 );
 
-wire        inst_sram_req,
-wire        inst_sram_wr,
-wire [ 3:0] inst_sram_wstrb,
-wire [ 1:0] inst_sram_size,
-wire [31:0] inst_sram_addr,
-wire [31:0] inst_sram_wdata,
-wire        inst_sram_addr_ok,
-wire        inst_sram_data_ok,
- wire [31:0] inst_sram_rdata,
+wire        inst_sram_req;
+wire        inst_sram_wr;
+wire [ 3:0] inst_sram_wstrb;
+wire [ 1:0] inst_sram_size;
+wire [31:0] inst_sram_addr;
+wire [31:0] inst_sram_wdata;
+wire        inst_sram_addr_ok;
+wire        inst_sram_data_ok;
+ wire [31:0] inst_sram_rdata;
 
-wire        data_sram_req,
-wire        data_sram_wr,
-wire [ 3:0] data_sram_wstrb,
-wire [ 1:0] data_sram_size,
-wire [31:0] data_sram_addr,
-wire [31:0] data_sram_wdata,
-wire        data_sram_addr_ok,
-wire        data_sram_data_ok,
-wire [31:0] data_sram_rdata,
+wire        data_sram_req;
+wire        data_sram_wr;
+wire [ 3:0] data_sram_wstrb;
+wire [ 1:0] data_sram_size;
+wire [31:0] data_sram_addr;
+wire [31:0] data_sram_wdata;
+wire        data_sram_addr_ok;
+wire        data_sram_data_ok;
+wire [31:0] data_sram_rdata;
 
 mycpu_core u_mycpu_core(
     .clk            (aclk            ),
     .resetn         (aresetn         ),
+    // inst sram interface
+    .inst_sram_req  (inst_sram_req  ),
+    .inst_sram_wr   (inst_sram_wr   ),
+    .inst_sram_wstrb(inst_sram_wstrb),
+    .inst_sram_size (inst_sram_size ),
+    .inst_sram_addr (inst_sram_addr ),
+    .inst_sram_wdata(inst_sram_wdata),
+    .inst_sram_addr_ok(inst_sram_addr_ok),
+    .inst_sram_data_ok(inst_sram_data_ok),
+    .inst_sram_rdata(inst_sram_rdata),
+    .axi_arid     (arid      ),//debug问题1
+    // data sram interface
+    .data_sram_req  (data_sram_req  ),
+    .data_sram_wr   (data_sram_wr   ),
+    .data_sram_wstrb(data_sram_wstrb),
+    .data_sram_size (data_sram_size ),
+    .data_sram_addr (data_sram_addr ),
+    .data_sram_wdata(data_sram_wdata),
+    .data_sram_addr_ok(data_sram_addr_ok),
+    .data_sram_data_ok(data_sram_data_ok),
+    .data_sram_rdata(data_sram_rdata),
+    // trace debug interface
+    .debug_wb_pc      (debug_wb_pc       ),
+    .debug_wb_rf_we   (debug_wb_rf_we   ),
+    .debug_wb_rf_wnum (debug_wb_rf_wnum ),
+    .debug_wb_rf_wdata(debug_wb_rf_wdata)
+);
+
+bridge u_bridge(
+    .aclk           (aclk           ),
+    .aresetn        (aresetn        ),
+    
+    // axi interface
+    .arid           (arid           ),
+    .araddr         (araddr         ),
+    .arlen          (arlen          ),
+    .arsize         (arsize         ),
+    .arburst        (arburst        ),
+    .arlock         (arlock         ),
+    .arcache        (arcache        ),
+    .arprot         (arprot         ),
+    .arvalid        (arvalid        ),
+    .arready        (arready        ),
+    .rid            (rid            ),
+    .rdata          (rdata          ),
+    .rresp          (rresp          ),
+    .rlast          (rlast          ),
+    .rvalid         (rvalid         ),
+    .rready         (rready         ),
+    .awid           (awid           ),
+    .awaddr         (awaddr         ),
+    .awlen          (awlen          ),
+    .awsize         (awsize         ),
+    .awburst        (awburst        ),
+    .awlock         (awlock         ),
+    .awcache        (awcache        ),
+    .awprot         (awprot         ),
+    .awvalid        (awvalid        ),
+    .awready        (awready        ),
+    .wid            (wid            ),
+    .wdata          (wdata          ),
+    .wstrb          (wstrb          ),
+    .wlast          (wlast          ),
+    .wvalid         (wvalid         ),
+    .wready         (wready         ),
+    .bid            (bid            ),
+    .bresp          (bresp          ),
+    .bvalid         (bvalid         ),
+    .bready         (bready         ),
+
     // inst sram interface
     .inst_sram_req  (inst_sram_req  ),
     .inst_sram_wr   (inst_sram_wr   ),
@@ -89,13 +159,7 @@ mycpu_core u_mycpu_core(
     .data_sram_wdata(data_sram_wdata),
     .data_sram_addr_ok(data_sram_addr_ok),
     .data_sram_data_ok(data_sram_data_ok),
-    .data_sram_rdata(data_sram_rdata),
-    // trace debug interface
-    .debug_wb_pc      (debug_wb_pc       ),
-    .debug_wb_rf_we   (debug_wb_rf_we   ),
-    .debug_wb_rf_wnum (debug_wb_rf_wnum ),
-    .debug_wb_rf_wdata(debug_wb_rf_wdata)
+    .data_sram_rdata(data_sram_rdata)
 );
-
 
 endmodule

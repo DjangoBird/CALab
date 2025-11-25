@@ -11,7 +11,8 @@ module mycpu_core(
     input  wire        inst_sram_addr_ok,
     input  wire        inst_sram_data_ok,
     input  wire [31:0] inst_sram_rdata,
-    // data sram interface
+    input  wire [ 3:0] axi_arid, //debug问题1
+    // data sram interface 
     output wire        data_sram_req,
     output wire        data_sram_wr,
     output wire [ 3:0] data_sram_wstrb,
@@ -143,7 +144,9 @@ IF_stage u_IF_stage(
     .ex_entry(ex_entry),
     .ertn_entry(ertn_entry),
     
-    .fs_adef_ex(fs_adef_ex)
+    .fs_adef_ex(fs_adef_ex),
+
+    .axi_arid(axi_arid)//debug问题1
 );
 
 ID_stage u_ID_stage(
