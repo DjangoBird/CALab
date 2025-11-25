@@ -80,11 +80,11 @@ always @(posedge clk) begin
     end
 end
 
-assign fs_ready_go  = (inst_sram_data_ok | fs_inst_buf_valid) & !inst_discard;//有指令
+assign fs_ready_go  = (inst_sram_data_ok | fs_inst_buf_valid) & !inst_discard;//有指�?
 assign fs_allowin   = (!fs_valid) | (fs_ready_go & ds_allowin);
 assign fs_to_ds_valid = fs_valid & fs_ready_go;
 assign pf_ready_go = inst_sram_req & inst_sram_addr_ok;//握手成功
-assign to_fs_valid = pf_ready_go & ~pf_block &~pf_cancel;//
+assign to_fs_valid = pf_ready_go & ~pf_block &~pf_cancel;
 
 always @(posedge clk) begin
     if (!resetn)

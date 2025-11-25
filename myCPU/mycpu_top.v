@@ -80,7 +80,7 @@ mycpu_core u_mycpu_core(
     .inst_sram_addr_ok(inst_sram_addr_ok),
     .inst_sram_data_ok(inst_sram_data_ok),
     .inst_sram_rdata(inst_sram_rdata),
-    .axi_arid     (arid      ),//debugé—®é¢˜1
+    .axi_arid     (arid      ),//debugÎÊÌâ1
     // data sram interface
     .data_sram_req  (data_sram_req  ),
     .data_sram_wr   (data_sram_wr   ),

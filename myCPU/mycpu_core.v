@@ -11,8 +11,8 @@ module mycpu_core(
     input  wire        inst_sram_addr_ok,
     input  wire        inst_sram_data_ok,
     input  wire [31:0] inst_sram_rdata,
-    input  wire [ 3:0] axi_arid, //debug问题1
-    // data sram interface 
+    input  wire [ 3:0] axi_arid, //debug����1
+    // data sram interface
     output wire        data_sram_req,
     output wire        data_sram_wr,
     output wire [ 3:0] data_sram_wstrb,
@@ -81,8 +81,8 @@ wire        csr_re;
 wire        csr_we;
 wire [31:0] csr_wmask;
 wire [31:0] csr_wvalue;
-wire [31:0]   ex_entry; //送往pre-IF的异常处理入口地址
-wire [31:0]   ertn_entry; //送往pre-IF的返回入口地址
+wire [31:0]   ex_entry; //送往pre-IF的异常处理入口地�?
+wire [31:0]   ertn_entry; //送往pre-IF的返回入口地�?
 wire          has_int; //送往ID流水级的中断有效信号
 wire        ertn_flush; //来自WB流水级的ertn指令执行有效信号
 
@@ -90,7 +90,7 @@ wire        ms_ex;
 wire        wb_ex; //来自WB流水级的异常处理触发信号
 wire [ 5:0] wb_ecode; //异常类型
 wire [ 8:0] wb_esubcode; //异常类型
-wire  [31:0] wb_pc; //写回的返回地址
+wire  [31:0] wb_pc; //写回的返回地�?
 
 //IF阶段产生adef异常
 wire        fs_adef_ex;
@@ -145,8 +145,8 @@ IF_stage u_IF_stage(
     .ertn_entry(ertn_entry),
     
     .fs_adef_ex(fs_adef_ex),
-
-    .axi_arid(axi_arid)//debug问题1
+    
+    .axi_arid(axi_arid)
 );
 
 ID_stage u_ID_stage(
