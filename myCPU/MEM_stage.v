@@ -26,7 +26,7 @@ module MEM_stage(
     output reg         ms_rf_we,
     output reg  [ 4:0] ms_rf_waddr,
     output wire [31:0] ms_rf_wdata,
-
+    output reg         ms_res_from_mem,
     input  wire [ 4:0] es_ld_inst,//
 
     //data sram interface

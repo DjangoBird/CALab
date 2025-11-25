@@ -145,9 +145,9 @@ always @(posedge clk) begin
         es_ld_inst      <= mem_inst[4:0];
         es_st_inst      <= mem_inst[7:5];
         
-    es_ex_zip_reg       <= ds_ex_zip;
-    // propagate csr read request from ID stage when the transfer occurs
-    es_csr_re       <= ds_csr_re;
+        es_ex_zip_reg       <= ds_ex_zip;
+        // propagate csr read request from ID stage when the transfer occurs
+        es_csr_re       <= ds_csr_re;
     end
     else if(es_allowin) begin
         es_rf_we        <= 1'b0;

@@ -135,15 +135,15 @@ always @(posedge clk) begin
         ex_entry_reg <= 32'b0;
         ertn_entry_reg <= 32'b0;
     end
-    else if (wb_ex & !pf_ready_go)begin
+    else if (wb_ex )begin
         wb_ex_reg <= wb_ex;
         ex_entry_reg <= ex_entry;
     end
-    else if(ertn_flush & !pf_ready_go) begin
+    else if(ertn_flush ) begin
         ertn_flush_reg <= ertn_flush;
         ertn_entry_reg <= ertn_entry;
     end
-    else if (br_taken & !pf_ready_go) begin
+    else if (br_taken ) begin
         br_taken_reg <= br_taken;
         br_target_reg <= br_target;
     end

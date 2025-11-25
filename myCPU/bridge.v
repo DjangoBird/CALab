@@ -97,14 +97,17 @@ end
 
 always @(*) begin
     case (ar_current_state)
-        IDLE: begin
-            if (inst_sram_req & !inst_sram_wr | data_sram_req & !data_sram_wr) begin
-                ar_next_state = AR_REQ_START;
-            end
-            else begin
-                ar_next_state = IDLE;
-            end
-        end //read_block
+        IDLE:begin
+				if(~aresetn | read_block)begin
+					ar_next_state = IDLE;
+				end
+				else if(data_sram_req & ~data_sram_wr | inst_sram_req & ~inst_sram_wr)begin
+					ar_next_state = AR_REQ_START;
+				end
+				else begin
+					ar_next_state = IDLE;
+				end
+			end
         AR_REQ_START: begin
             if (arready & arvalid) begin
                 ar_next_state = AR_REQ_END;
