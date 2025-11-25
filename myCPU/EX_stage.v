@@ -1,0 +1,206 @@
+module EX_stage(
+    input wire         clk,
+    input wire         resetn,
+    
+    input wire [7:0]   mem_inst,//
+
+    //allowin
+    input  wire        ms_allowin,
+    output wire        es_allowin,
+    
+    //from ds
+    input wire         ds_to_es_valid,
+    input wire [18:0]  ds_alu_op,//add width for mul,div and mod
+    input wire         ds_res_from_mem,
+    input wire [31:0]  ds_alu_src1,
+    input wire [31:0]  ds_alu_src2,
+    input wire [31:0]  ds_rkd_value,
+    input wire         ds_mem_we,
+    input wire         ds_rf_we,
+    input wire [ 4:0]  ds_rf_waddr,
+    input wire [31:0]  ds_pc,
+    
+    //to ms
+    output wire        es_to_ms_valid,
+    output reg  [31:0] es_pc,
+    output wire        es_mem_req,
+
+    //to id: for load-use
+    output reg         es_rf_we,
+    output reg  [ 4:0] es_rf_waddr,
+    output wire [31:0] es_alu_result,
+    output reg         es_res_from_mem,
+    output reg  [ 4:0] es_ld_inst, //
+    
+    output wire [31:0] es_result, //考虑时钟数据的result
+
+    //data sram interface
+    output wire        data_sram_req,
+    output wire        data_sram_wr,
+    output wire [ 3:0] data_sram_wstrb,
+    output wire [ 1:0] data_sram_size,
+    output wire [31:0] data_sram_addr,
+    output wire [31:0] data_sram_wdata,
+    input  wire        data_sram_addr_ok,
+    
+    input  wire        ms_ex,
+    input  wire        wb_ex,
+    //input  wire        wb_ertn,
+    output wire        es_ex,
+    
+    input wire ds_csr_re,
+    output reg es_csr_re,
+    
+    input wire inst_rdcntvh,
+    input wire inst_rdcntvl,
+    
+    input wire [84:0] ds_ex_zip,//{ds_csr_we, ds_csr_wmask, ds_csr_wvalue, ds_csr_num, inst_ertn, has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex}
+    output wire [85:0] es_ex_zip//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex}
+
+);
+
+wire es_ready_go;
+reg  es_valid;
+
+reg  [18:0] es_alu_op;//add width for mul,div and mod
+reg  [31:0] es_alu_src1;
+reg  [31:0] es_alu_src2;
+reg  [31:0] es_rkd_value;
+
+reg  [31:0] es_mem_result;
+
+  
+wire        alu_complete;
+reg [2:0] es_st_inst;//
+
+reg [84:0] es_ex_zip_reg;
+
+
+wire        es_csr_we;
+wire [31:0] es_csr_wmask;
+wire [31:0] es_csr_wvalue;
+wire [13:0] es_csr_num;
+
+wire        es_has_int;
+wire        es_adef_ex;
+wire        es_sys_ex;
+wire        es_brk_ex;
+wire        es_ine_ex;
+wire        es_ertn;
+
+wire        es_ale_ex;//exe阶段产生ale异常
+
+reg [63:0] time_counter;
+//time_counter
+    always @(posedge clk) begin
+        if(~resetn)
+            time_counter <= 64'b0;
+        else
+            time_counter <= time_counter + 1;
+    end
+
+
+assign es_ex       = (|es_ex_zip_reg[5:0]) | es_ale_ex;//[inst_ertn,has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex]|es_ale_ex
+
+assign es_ready_go = alu_complete & (!data_sram_req | data_sram_req & data_sram_addr_ok);//alu完成且访存握手成功
+assign es_allowin  = !es_valid || es_ready_go && ms_allowin | wb_ex;
+assign es_to_ms_valid = es_valid && es_ready_go & ~wb_ex;
+
+always @(posedge clk) begin
+    if (!resetn)
+        es_valid <= 1'b0;
+    else if(wb_ex)
+        es_valid <= 1'b0;
+    else if (es_allowin)
+        es_valid <= ds_to_es_valid;
+end
+
+always @(posedge clk) begin
+    if (!resetn) begin
+        es_alu_op       <= 18'b0;
+        es_res_from_mem <= 1'b0;
+        es_alu_src1     <= 32'b0;
+        es_alu_src2     <= 32'b0;
+        es_rkd_value    <= 32'b0;
+
+        es_rf_we        <= 1'b0;
+        es_rf_waddr     <= 5'b0;
+        es_pc           <= 32'b0;
+        es_ld_inst      <= 5'b0;
+        es_st_inst      <= 3'b0;
+        
+        es_ex_zip_reg       <= 85'b0;
+        es_csr_re       <= 1'b0;
+    end
+    else if (ds_to_es_valid && es_allowin) begin
+        es_alu_op       <= ds_alu_op;
+        es_res_from_mem <= ds_res_from_mem;
+        es_alu_src1     <= ds_alu_src1;
+        es_alu_src2     <= ds_alu_src2;
+        es_rkd_value    <= ds_rkd_value;
+
+        es_rf_we        <= ds_rf_we;
+        es_rf_waddr     <= ds_rf_waddr;
+        es_pc           <= ds_pc;
+        es_ld_inst      <= mem_inst[4:0];
+        es_st_inst      <= mem_inst[7:5];
+        
+        es_ex_zip_reg       <= ds_ex_zip;
+        // propagate csr read request from ID stage when the transfer occurs
+        es_csr_re       <= ds_csr_re;
+    end
+    else if(es_allowin) begin
+        es_rf_we        <= 1'b0;
+        es_res_from_mem <= 1'b0;
+
+    end
+end
+
+assign {es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex} = es_ex_zip_reg;
+
+alu u_alu(
+    .clk       (clk),
+    .resetn    (resetn),
+    .alu_op    (es_alu_op),
+    .alu_src1  (es_alu_src1),
+    .alu_src2  (es_alu_src2),
+    .alu_result(es_alu_result),
+    .complete  (alu_complete)
+);
+
+assign es_result = inst_rdcntvh ? time_counter[63:32] :
+                   inst_rdcntvl ? time_counter[31:0]  :
+                   es_alu_result;
+                        
+wire [3:0] es_mem_we;
+assign es_mem_we[0]     = op_st_w | op_st_h & ~es_alu_result[1] | op_st_b & ~es_alu_result[0] & ~es_alu_result[1];   
+assign es_mem_we[1]     = op_st_w | op_st_h & ~es_alu_result[1] | op_st_b &  es_alu_result[0] & ~es_alu_result[1];   
+assign es_mem_we[2]     = op_st_w | op_st_h &  es_alu_result[1] | op_st_b & ~es_alu_result[0] &  es_alu_result[1];   
+assign es_mem_we[3]     = op_st_w | op_st_h &  es_alu_result[1] | op_st_b &  es_alu_result[0] &  es_alu_result[1];  
+
+assign {op_st_b,op_st_h,op_st_w} = es_st_inst;
+assign {op_ld_b,op_ld_bu,op_ld_h,op_ld_hu,op_ld_w} = es_ld_inst;
+
+assign es_mem_req       = ((|es_mem_we) || es_res_from_mem);
+assign data_sram_req    = es_valid && es_mem_req & ms_allowin;
+assign data_sram_wr     = es_valid & ~es_ex & ~ms_ex & ~wb_ex & (|data_sram_wstrb);//发生异常时不可访存
+assign data_sram_wstrb  = es_mem_we;
+assign data_sram_size   = op_ld_b | op_st_b ? 2'b00 :
+                          op_ld_h | op_ld_hu | op_st_h ? 2'b01 :
+                          2'b10;
+assign data_sram_addr  = es_alu_result;//不用对齐
+// assign data_sram_wdata[ 7: 0]   = es_rkd_value[ 7: 0];
+// assign data_sram_wdata[15: 8]   = op_st_b ? es_rkd_value[ 7: 0] : es_rkd_value[15: 8];
+// assign data_sram_wdata[23:16]   = op_st_w ? es_rkd_value[23:16] : es_rkd_value[ 7: 0];
+// assign data_sram_wdata[31:24]   = op_st_w ? es_rkd_value[31:24] : 
+//                                   op_st_h ? es_rkd_value[15: 8] : es_rkd_value[ 7: 0];
+assign data_sram_wdata =op_st_b ? {4{es_rkd_value[7:0]}} :
+                        op_st_h ? {2{es_rkd_value[15:0]}} :
+                        es_rkd_value;
+
+assign es_ale_ex     = es_valid & ((op_ld_h | op_ld_hu | op_st_h) & es_alu_result[0] |
+                                         (op_ld_w | op_st_w) & (|es_alu_result[1:0]));//判断ale异常
+                                         
+assign es_ex_zip ={es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex};
+
+endmodule
