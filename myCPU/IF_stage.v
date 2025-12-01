@@ -32,10 +32,7 @@ module IF_stage(
     input  wire [31:0]  ex_entry,
     input  wire [31:0]  ertn_entry,
     
-    output wire         fs_adef_ex,
-
-    input wire  [ 3:0]  axi_arid //for bridge
-
+    output wire         fs_adef_ex
 );
 
 wire pf_ready_go;
@@ -64,6 +61,7 @@ wire [31:0] nextpc;
 reg  [31:0] fs_inst_buf;
 reg         fs_inst_buf_valid;
 
+reg         inst_sram_addr_ack;//
 
 //cancel logic
 assign fs_cancel = br_taken | wb_ex | ertn_flush;
@@ -80,7 +78,7 @@ always @(posedge clk) begin
     end
 end
 
-assign fs_ready_go  = (inst_sram_data_ok | fs_inst_buf_valid) & !inst_discard;//有指�?
+assign fs_ready_go  = (inst_sram_data_ok | fs_inst_buf_valid) & !inst_discard;//有指令
 assign fs_allowin   = (!fs_valid) | (fs_ready_go & ds_allowin);
 assign fs_to_ds_valid = fs_valid & fs_ready_go;
 assign pf_ready_go = inst_sram_req & inst_sram_addr_ok;//握手成功
@@ -94,6 +92,16 @@ always @(posedge clk) begin
     else if (fs_cancel)
         fs_valid <= 1'b0;
 end
+
+// 判断当前地址是否已经握手成功，若成功则拉低req，避免重复申请
+always @(posedge clk) begin
+    if(~resetn)
+        inst_sram_addr_ack <= 1'b0;
+    else if(pf_ready_go)
+        inst_sram_addr_ack <= 1'b1;
+    else if(inst_sram_data_ok)
+        inst_sram_addr_ack <= 1'b0;
+end//16
 
 //临时缓存
 always @(posedge clk) begin
@@ -117,7 +125,7 @@ always @(posedge clk)begin
     if(!resetn)begin
         pf_block <= 1'b0;
     end
-    else if(pf_cancel & ~pf_block & ~axi_arid[0])begin
+    else if(pf_cancel & ~inst_sram_data_ok)begin
         pf_block <= 1'b1;
     end
     else if(inst_sram_data_ok)begin
@@ -170,7 +178,7 @@ assign nextpc = wb_ex_reg ? ex_entry_reg:
 assign fs_inst = fs_inst_buf_valid ? fs_inst_buf : inst_sram_rdata; 
 
 
-assign inst_sram_req   = resetn & fs_allowin & !br_stall & !pf_block;//只有IF阶段发出请求
+assign inst_sram_req   = fs_allowin & resetn & (~br_stall | wb_ex | ertn_flush) & ~pf_block & ~inst_sram_addr_ack;//16
 assign inst_sram_wr    = (|inst_sram_wstrb);
 assign inst_sram_wstrb = 4'b0;
 assign inst_sram_addr  = nextpc;

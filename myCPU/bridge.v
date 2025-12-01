@@ -75,16 +75,16 @@ reg [1:0] ar_resp_count;
 reg [1:0] aw_resp_count;
 reg [1:0] wd_resp_count;
 
-reg [31:0] buf_rdata [1:0];//数据寄存器，0表示指令SRAM寄存器，1表示数据SRAM寄存�?
+reg [31:0] buf_rdata [1:0];//数据寄存器，0表示指令SRAM寄存器，1表示数据SRAM寄存器
 
 wire read_block;//当检测到读后写相关时，阻塞读请求，防止读到旧数据
 
 reg [3:0] rid_r;
 
-localparam IDLE = 5'b1; //通道没有正在进行的事务，正在等待启动新事物的条件
+localparam IDLE = 5'b1; //通道没有正在进行的事务，正在等待启动新事务的条件
 
-localparam AR_REQ_START = 3'b010, //状�??1：开始发送读地址
-           AR_REQ_END   = 3'b100; //状�??2：读地址发�?�完�?
+localparam AR_REQ_START = 3'b010, //状态1：开始发送读地址
+           AR_REQ_END   = 3'b100; //状态2：读地址发送完成
 
 always @(posedge aclk) begin
     if (!aresetn) begin
@@ -125,8 +125,8 @@ always @(*) begin
     endcase
 end
 
-localparam R_DATA_START = 3'b010, //状�??1：等待读数据
-           R_DATA_END  = 3'b100; //状�??2：读数据接收完毕
+localparam R_DATA_START = 3'b010, //状态1：等待读数据
+           R_DATA_END  = 3'b100; //状态2：读数据接收完毕
 
 always @(posedge aclk) begin
     if(~aresetn) begin
@@ -164,10 +164,10 @@ always @(*) begin
     endcase
 end
 
-localparam W_REQ_START = 5'b00010, //状�??1：开始发送地�?和数�?
-           W_ADDR_RESP = 5'b00100, //状�??2：地�?已发送，等待数据
-           W_DATA_RESP = 5'b01000, //状�??3：数据已发�?�，等待地址
-           W_REQ_END   = 5'b10000; //状�??4：地�?和数据都发�?�完�?
+localparam W_REQ_START = 5'b00010, //状态1：开始发送地址和数据
+           W_ADDR_RESP = 5'b00100, //状态2：地址已发送，等待数据
+           W_DATA_RESP = 5'b01000, //状态3：数据已发送，等待地址
+           W_REQ_END   = 5'b10000; //状态4：地址和数据都发送完成
 
 always @(posedge aclk)begin
     if(~aresetn)begin
@@ -235,8 +235,8 @@ always @(*)begin
     endcase
 end
 
-localparam B_START = 3'b010, //状�??1：等待写响应
-           B_END   = 3'b100; //状�??2：响应接收完�?
+localparam B_START = 3'b010, //状态1：等待写响应
+           B_END   = 3'b100; //状态2：响应接收完成
 
 always @(posedge aclk) begin
     if(~aresetn)
@@ -285,7 +285,7 @@ always @(posedge aclk)begin
         arprot <= 3'b0;
     end
     else if(ar_current_state[0])begin
-        arid <= {3'b0, data_sram_req & !data_sram_wr};//0表示指令sram�?1表示数据sram
+        arid <= {3'b0, data_sram_req & !data_sram_wr};//0表示指令sram，1表示数据sram
         araddr <= data_sram_req & !data_sram_wr ? data_sram_addr : inst_sram_addr;
         arsize <= data_sram_req & !data_sram_wr ? {1'b0,data_sram_size} : {1'b0,inst_sram_size};
         arlen <= 8'b0;
@@ -301,7 +301,7 @@ always @(posedge aclk) begin
         ar_resp_count <= 2'b0;
     end
     else if(arvalid & arready & rvalid & rready)begin
-        ar_resp_count <= ar_resp_count;//发生在同�?周期的处�?
+        ar_resp_count <= ar_resp_count;//发生在同一周期的处理
     end
     else if(arvalid & arready)begin
         ar_resp_count <= ar_resp_count + 1'b1;
