@@ -46,6 +46,8 @@ wire fs_cancel;
 wire pf_cancel;
 reg  inst_discard;
 
+reg  pf_block;
+
 reg         wb_ex_reg;
 reg         ertn_flush_reg;
 reg         br_taken_reg;
@@ -59,15 +61,16 @@ wire [31:0] nextpc;
 reg  [31:0] fs_inst_buf;
 reg         fs_inst_buf_valid;
 
+reg         inst_sram_addr_ack;//
 
 //cancel logic
 assign fs_cancel = br_taken | wb_ex | ertn_flush;
-assign pf_cancel = 1'b0;
+assign pf_cancel = fs_cancel;//
 always @(posedge clk) begin
     if (!resetn) begin
         inst_discard <= 1'b0;
     end
-    else if (pf_cancel & to_fs_valid | fs_cancel & !fs_allowin & !fs_ready_go) begin
+    else if (pf_cancel & inst_sram_req | fs_cancel & !fs_allowin & !fs_ready_go) begin//
         inst_discard <= 1'b1;
     end
     else if (inst_discard & inst_sram_data_ok)begin
@@ -79,7 +82,7 @@ assign fs_ready_go  = (inst_sram_data_ok | fs_inst_buf_valid) & !inst_discard;//
 assign fs_allowin   = (!fs_valid) | (fs_ready_go & ds_allowin);
 assign fs_to_ds_valid = fs_valid & fs_ready_go;
 assign pf_ready_go = inst_sram_req & inst_sram_addr_ok;//握手成功
-assign to_fs_valid = pf_ready_go;
+assign to_fs_valid = pf_ready_go & ~pf_block &~pf_cancel;
 
 always @(posedge clk) begin
     if (!resetn)
@@ -89,6 +92,16 @@ always @(posedge clk) begin
     else if (fs_cancel)
         fs_valid <= 1'b0;
 end
+
+// 判断当前地址是否已经握手成功，若成功则拉低req，避免重复申请
+always @(posedge clk) begin
+    if(~resetn)
+        inst_sram_addr_ack <= 1'b0;
+    else if(pf_ready_go)
+        inst_sram_addr_ack <= 1'b1;
+    else if(inst_sram_data_ok)
+        inst_sram_addr_ack <= 1'b0;
+end//16
 
 //临时缓存
 always @(posedge clk) begin
@@ -108,6 +121,18 @@ always @(posedge clk) begin
     end
 end
 
+always @(posedge clk)begin
+    if(!resetn)begin
+        pf_block <= 1'b0;
+    end
+    else if(pf_cancel & ~inst_sram_data_ok)begin
+        pf_block <= 1'b1;
+    end
+    else if(inst_sram_data_ok)begin
+        pf_block <= 1'b0;
+    end
+end
+
 
 always @(posedge clk) begin
     if (!resetn) begin
@@ -118,15 +143,15 @@ always @(posedge clk) begin
         ex_entry_reg <= 32'b0;
         ertn_entry_reg <= 32'b0;
     end
-    else if (wb_ex & !pf_ready_go)begin
+    else if (wb_ex )begin
         wb_ex_reg <= wb_ex;
         ex_entry_reg <= ex_entry;
     end
-    else if(ertn_flush & !pf_ready_go) begin
+    else if(ertn_flush ) begin
         ertn_flush_reg <= ertn_flush;
         ertn_entry_reg <= ertn_entry;
     end
-    else if (br_taken & !pf_ready_go) begin
+    else if (br_taken ) begin
         br_taken_reg <= br_taken;
         br_target_reg <= br_target;
     end
@@ -153,7 +178,7 @@ assign nextpc = wb_ex_reg ? ex_entry_reg:
 assign fs_inst = fs_inst_buf_valid ? fs_inst_buf : inst_sram_rdata; 
 
 
-assign inst_sram_req   = resetn & fs_allowin & !br_stall & !pf_cancel;//只有IF阶段发出请求
+assign inst_sram_req   = fs_allowin & resetn & (~br_stall | wb_ex | ertn_flush) & ~pf_block & ~inst_sram_addr_ack;//16
 assign inst_sram_wr    = (|inst_sram_wstrb);
 assign inst_sram_wstrb = 4'b0;
 assign inst_sram_addr  = nextpc;

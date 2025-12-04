@@ -43,6 +43,7 @@ module ID_stage(
     input  wire        ms_rf_we,
     input  wire [ 4:0] ms_rf_waddr,
     input  wire [31:0] ms_rf_wdata,
+    input  wire        ms_res_from_mem,
     input  wire        ms_csr_re,
     
     //from wb
@@ -95,7 +96,7 @@ wire [19:0] i20;
 wire [15:0] i16;
 wire [25:0] i26;
 
-//独热�?
+//独热码
 wire [63:0] op_31_26_d;
 wire [15:0] op_25_22_d;
 wire [ 3:0] op_21_20_d;
@@ -209,7 +210,7 @@ assign ds_ready_go    = !ds_stop;
 assign ds_allowin     = !ds_valid | (ds_ready_go & es_allowin) | wb_ex;
 //load-risk
 assign ds_stop        = ( ( (conflict_rs1_ex & need_r1)  | (conflict_rs2_ex & need_r2)  ) & (es_res_from_mem | es_csr_re) )|
-                        ( ( (conflict_rs1_mem & need_r1) | (conflict_rs2_mem & need_r2) ) & ms_csr_re);
+                        ( ( (conflict_rs1_mem & need_r1) | (conflict_rs2_mem & need_r2) ) & (ms_res_from_mem | ms_csr_re) );
 assign ds_to_es_valid =  ds_valid & ds_ready_go & ~wb_ex;
 
 always @(posedge clk) begin
@@ -485,7 +486,7 @@ regfile u_regfile(
     .wdata  (ws_rf_wdata )
 );
 
-assign ds_rf_we    = gr_we;
+assign ds_rf_we    = gr_we & ds_valid;
 assign ds_rf_waddr = dest;
 
 
