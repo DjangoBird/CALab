@@ -458,7 +458,7 @@ csr u_csr(
         /* input data from WB */
         .tlbsrch_we        (tlbsrch_we),
         .tlbsrch_hit       (tlbsrch_hit),
-        .tlbsrch_hit_index (tlbsrch_hit_index),
+        .tlbsrch_idx       (tlbsrch_idx),
         .tlbrd_we          (tlbrd_we),
         
         /* input data from TLB, TLBSRCH & TLBRD use these data to write CSR */
