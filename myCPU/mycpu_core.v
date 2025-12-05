@@ -183,6 +183,24 @@ wire [ 1:0] r_mat1;
 wire        r_d1;
 wire        r_v1;
 
+/* ----- input to csr in exp 18 ----- */
+wire        tlbrd_we;
+wire        tlbsrch_we;
+wire        tlbsrch_hit;
+wire [ 3:0] tlbsrch_idx;
+
+/* ----- output csr in exp 18 ----- */
+wire [ 9:0] csr_asid_asid;
+wire [18:0] csr_tlbehi_vppn;
+wire [ 3:0] csr_tlbidx_index;
+/* ----- output csr in exp 19 ----- */
+wire [31:0] csr_crmd_rvalue;
+wire [31:0] csr_asid_rvalue;
+wire [31:0] csr_dmw0_rvalue;
+wire [31:0] csr_dmw1_rvalue; 
+
+
+
 IF_stage u_IF_stage(
     .clk            (clk            ),
     .resetn         (resetn         ),
@@ -435,7 +453,60 @@ csr u_csr(
         .ipi_int_in(ipi_int_in),
         .hw_int_in(hw_int_in),
         .coreid_in(coreid_in),
-        .wb_vaddr(wb_vaddr)
+        .wb_vaddr(wb_vaddr),
+        
+        /* input data from WB */
+        .tlbsrch_we        (tlbsrch_we),
+        .tlbsrch_hit       (tlbsrch_hit),
+        .tlbsrch_hit_index (tlbsrch_hit_index),
+        .tlbrd_we          (tlbrd_we),
+        
+        /* input data from TLB, TLBSRCH & TLBRD use these data to write CSR */
+        .r_tlb_e         (r_e),
+        .r_tlb_ps        (r_ps),
+        .r_tlb_vppn      (r_vppn),
+        .r_tlb_asid      (r_asid),
+        .r_tlb_g         (r_g),
+        .r_tlb_ppn0      (r_ppn0),
+        .r_tlb_plv0      (r_plv0),
+        .r_tlb_mat0      (r_mat0),
+        .r_tlb_d0        (r_d0),
+        .r_tlb_v0        (r_v0),
+        .r_tlb_ppn1      (r_ppn1),
+        .r_tlb_plv1      (r_plv1),
+        .r_tlb_mat1      (r_mat1),
+        .r_tlb_d1        (r_d1),
+        .r_tlb_v1        (r_v1),
+    
+        /* output data to TLB, TLBWR & TLBFILL use these data to write TLB */
+        .w_tlb_e         (w_e),
+        .w_tlb_ps        (w_ps),
+        .w_tlb_vppn      (w_vppn),
+        .w_tlb_asid      (w_asid),
+        .w_tlb_g         (w_g),
+        .w_tlb_ppn0      (w_ppn0),
+        .w_tlb_plv0      (w_plv0),
+        .w_tlb_mat0      (w_mat0),
+        .w_tlb_d0        (w_d0),
+        .w_tlb_v0        (w_v0),
+        .w_tlb_ppn1      (w_ppn1),
+        .w_tlb_plv1      (w_plv1),
+        .w_tlb_mat1      (w_mat1),
+        .w_tlb_d1        (w_d1),
+        .w_tlb_v1        (w_v1),
+        
+        /* ----- output csr in exp 18 ----- */
+        .csr_asid_asid   (csr_asid_asid),
+        .csr_tlbehi_vppn (csr_tlbehi_vppn),
+        .csr_tlbidx_index(csr_tlbidx_index),
+        
+        
+        /* ----- output csr in exp 19 ----- */
+        .csr_crmd_rvalue(csr_crmd_rvalue),
+        .csr_asid_rvalue(csr_asid_rvalue),
+        .csr_dmw0_rvalue(csr_dmw0_rvalue),
+        .csr_dmw1_rvalue(csr_dmw1_rvalue)
+    
     );
     
 tlb u_tlb(
