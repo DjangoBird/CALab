@@ -61,6 +61,10 @@ module ID_stage(
     input wire [15:0]es_tlb_blk_zip,
     input wire [15:0]ms_tlb_blk_zip,
 
+    //TLB exception
+    input  wire [ 7:0] fs_tlb_exc,
+    output wire [ 7:0] ds_tlb_exc,
+
     output wire [84:0] ds_ex_zip,//{ds_csr_we, ds_csr_wmask, ds_csr_wvalue, ds_csr_num, has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex, inst_ertn}
 
     output wire [10:0] ds2es_tlb_zip,//{id_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op}
@@ -593,6 +597,7 @@ assign ms_tlb_blk = (load | store) && (
 
 assign ds2es_tlb_zip = {id_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op};
 
+assign ds_tlb_exc = fs_tlb_exc;
 
 endmodule
 

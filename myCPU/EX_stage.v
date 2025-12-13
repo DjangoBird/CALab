@@ -60,11 +60,15 @@ module EX_stage(
     input wire  [10:0] ds2es_tlb_zip,
 
     //to ms: exception and TLB
-    output wire [85:0] es_ex_zip,//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex}
+    output wire [86:0] es_ex_zip,//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex, es_adem_ex}
     output wire [ 9:0] es2ms_tlb_zip,
 
     //to id: for TLB
     output wire [15:0] es_tlb_blk_zip,
+
+    //TLB exception
+    input  wire [ 7:0] ds_tlb_exc,
+    output wire [ 7:0] es2ms_tlb_exc,
 
     //TLB
     output wire [ 4:0] invtlb_op,
@@ -81,6 +85,20 @@ module EX_stage(
     input  wire [ 1:0] s1_mat,
     input  wire        s1_d,
     input  wire        s1_v,
+
+    input  wire [ 1:0] crmd_plv_CSRoutput,
+    //DMW0
+    input  wire        csr_dmw0_plv0,
+    input  wire        csr_dmw0_plv3,
+    input  wire [ 2:0] csr_dmw0_pseg,
+    input  wire [ 2:0] csr_dmw0_vseg,
+    //DMW1
+    input  wire        csr_dmw1_plv0,
+    input  wire        csr_dmw1_plv3,
+    input  wire [ 2:0] csr_dmw1_pseg,
+    input  wire [ 2:0] csr_dmw1_vseg,
+
+    input  wire        csr_direct_addr,
 
     input  wire [18:0] tlbehi_vppn_CSRoutput,
     input  wire [ 9:0] asid_CSRoutput
@@ -117,12 +135,31 @@ wire        es_ertn;
 
 wire        es_ale_ex;//exe阶段产生ale异常
 
+wire        es_adem_ex;
 //TLB
 wire        inst_tlbsrch;
 wire        inst_tlbrd;
 wire        inst_tlbwr;
 wire        inst_tlbfill;
 wire        es_refetch_flag;
+
+//addr tranflation
+wire        dmw0_hit;
+wire        dmw1_hit;
+wire [31:0] dmw0_paddr;
+wire [31:0] dmw1_paddr;
+wire [31:0] tlb_paddr;
+
+wire        tlb_used;
+wire        isload;
+wire        isstore;
+
+wire [31:0] vaddr;
+wire [31:0] paddr;
+reg  [ 7:0] ds2es_tlb_exc;
+wire [ 7:0] es_tlb_exc;
+
+
 
 reg [63:0] time_counter;
 //time_counter
@@ -134,7 +171,7 @@ reg [63:0] time_counter;
     end
 
 
-assign es_ex       = (|es_ex_zip_reg[5:0]) | es_ale_ex;//[inst_ertn,has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex]|es_ale_ex
+assign es_ex       = ((|es_ex_zip_reg[5:0]) | es_ale_ex | es_adem_ex | (|es2ms_tlb_exc)) & es_valid;//[inst_ertn,has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex]|es_ale_ex
 
 assign es_ready_go = alu_complete & (!data_sram_req | data_sram_req & data_sram_addr_ok);//alu完成且访存握手成�?
 assign es_allowin  = !es_valid || es_ready_go && ms_allowin;
@@ -165,6 +202,7 @@ always @(posedge clk) begin
         
         es_ex_zip_reg   <= 85'b0;
         es_csr_re       <= 1'b0;
+        es2ms_tlb_exc   <= 8'b0;
     end
     else if (ds_to_es_valid && es_allowin) begin
         es_alu_op       <= ds_alu_op;
@@ -182,6 +220,8 @@ always @(posedge clk) begin
         es_ex_zip_reg   <= ds_ex_zip;
         // propagate csr read request from ID stage when the transfer occurs
         es_csr_re       <= ds_csr_re;
+
+        ds2es_tlb_exc   <= ds_tlb_exc;
     end
     else if(es_allowin) begin
         es_rf_we        <= 1'b0;
@@ -205,7 +245,8 @@ alu u_alu(
 assign es_result = inst_rdcntvh ? time_counter[63:32] :
                    inst_rdcntvl ? time_counter[31:0]  :
                    es_alu_result;
-                        
+
+
 wire [3:0] es_mem_we;
 assign es_mem_we[0]     = op_st_w | op_st_h & ~es_alu_result[1] | op_st_b & ~es_alu_result[0] & ~es_alu_result[1];   
 assign es_mem_we[1]     = op_st_w | op_st_h & ~es_alu_result[1] | op_st_b &  es_alu_result[0] & ~es_alu_result[1];   
@@ -222,15 +263,18 @@ assign data_sram_wstrb  = es_mem_we;
 assign data_sram_size   = op_ld_b | op_st_b ? 2'b00 :
                           op_ld_h | op_ld_hu | op_st_h ? 2'b01 :
                           2'b10;
-assign data_sram_addr  = es_alu_result;//不用对齐
+assign data_sram_addr  = paddr;
 assign data_sram_wdata =op_st_b ? {4{es_rkd_value[7:0]}} :
                         op_st_h ? {2{es_rkd_value[15:0]}} :
                         es_rkd_value;
 
 assign es_ale_ex     = es_valid & ((op_ld_h | op_ld_hu | op_st_h) & es_alu_result[0] |
                                          (op_ld_w | op_st_w) & (|es_alu_result[1:0]));//判断ale异常
-                                         
-assign es_ex_zip ={es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex};
+                                        
+
+assign es_adem_ex = 1'b0;
+
+assign es_ex_zip ={es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex, es_adem_ex};
 
 //TLB
 assign {es_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op} = ds2es_tlb_zip;
@@ -244,5 +288,32 @@ assign s1_asid = inst_invtlb ? es_alu_src1[ 9:0] : asid_CSRoutput;
 
 assign es_tlb_blk_zip = {inst_tlbrd & es_valid, es_csr_we & es_valid, es_csr_num};
 
+
+//addr translation
+assign vaddr = es_alu_result;
+
+assign dmw0_hit  = (vaddr[31:29] == csr_dmw0_vseg) & (crmd_plv_CSRoutput == 2'd0 & csr_dmw0_plv0 | crmd_plv_CSRoutput == 2'd3 & csr_dmw0_plv3);
+assign dmw1_hit  = (vaddr[31:29] == csr_dmw1_vseg) & (crmd_plv_CSRoutput == 2'd0 & csr_dmw1_plv0 | crmd_plv_CSRoutput == 2'd3 & csr_dmw1_plv3);
+
+assign dmw0_paddr = {csr_dmw0_pseg, vaddr[28:0]};
+assign dmw1_paddr = {csr_dmw1_pseg, vaddr[28:0]};
+
+assign tlb_paddr  = (s1_ps == 6'd22) ? {s1_ppn[19:10], vaddr[21:0]} : {s1_ppn, vaddr[11:0]}; // 根据Page Size决定
+
+assign paddr   = csr_direct_addr ? vaddr    :
+                    dmw0_hit        ? dmw0_paddr  :
+                    dmw1_hit        ? dmw1_paddr  :
+                                      tlb_paddr   ;
+assign tlb_used = (es_res_from_mem | (|es_mem_we)) & ~wb_ex & ~ms_ex & ~(|es_ex_zip[5:0]) & ~es_ale_ex & ~es_adem_ex //es_mem_req 
+                  & (~csr_direct_addr & ~dmw0_hit & ~dmw1_hit);
+assign isstore  = |es_mem_we;
+assign isload   = es_res_from_mem;
+assign {es_tlb_exc[`EARRAY_PIF], es_tlb_exc[`EARRAY_TLBR_FETCH], es_tlb_exc[`EARRAY_PPI_FETCH]} = 3'b0;
+assign es_tlb_exc[`EARRAY_TLBR_MEM] = es_valid & es_res_from_mem & tlb_used & !s1_found;
+assign es_tlb_exc[`EARRAY_PIL ] = es_valid & tlb_used & isload  & !es_tlb_exc[`EARRAY_TLBR_MEM] & !s1_v;
+assign es_tlb_exc[`EARRAY_PIS ] = es_valid & tlb_used & isstore & !es_tlb_exc[`EARRAY_TLBR_MEM] & !s1_v;
+assign es_tlb_exc[`EARRAY_PPI_MEM] = es_valid & tlb_used & (isload | isstore) & !es_tlb_exc[`EARRAY_PIL] & !es_tlb_exc[`EARRAY_PIS] & (crmd_plv_CSRoutput > s1_plv);
+assign es_tlb_exc[`EARRAY_PME ] = es_valid & tlb_used & isstore & !es_tlb_exc[`EARRAY_PPI_MEM] & !s1_d;
+assign es2ms_tlb_exc = ds2es_tlb_exc | es_tlb_exc;
 
 endmodule

@@ -160,42 +160,31 @@ module tlb
 
 
 
-
-    reg [3:0] rand_num;
-    always @(posedge clk) begin
-        if(resetn)
-            rand_num <= 4'd14;
-        else if(inst_wb_tlbfill && we)
-            rand_num <= rand_num + 4'h1;
-    end
-
     /* ----- write operation -----*/
-    wire [ 3:0] write_index;
-    assign write_index = inst_wb_tlbfill ? rand_num[3:0] : w_index;
     always @(posedge clk) begin
         if(we) begin
             // comparing part
             /* VPPN | PS | G | ASID | E */ 
-            tlb_vppn [write_index] <= w_vppn;
-            tlb_ps4MB[write_index] <= (w_ps == 6'd21);
-            tlb_g    [write_index] <= w_g;
-            tlb_asid [write_index] <= w_asid;
-            tlb_e    [write_index] <= w_e;
+            tlb_vppn [w_index] <= w_vppn;
+            tlb_ps4MB[w_index] <= (w_ps == 6'd21);
+            tlb_g    [w_index] <= w_g;
+            tlb_asid [w_index] <= w_asid;
+            tlb_e    [w_index] <= w_e;
 
             // physical address convertion part
             /* PPN0 | PLV0 | MAT0 | D0 | V0 */
-            tlb_ppn0 [write_index] <= w_ppn0;
-            tlb_plv0 [write_index] <= w_plv0;
-            tlb_mat0 [write_index] <= w_mat0;
-            tlb_d0   [write_index] <= w_d0;
-            tlb_v0   [write_index] <= w_v0;
+            tlb_ppn0 [w_index] <= w_ppn0;
+            tlb_plv0 [w_index] <= w_plv0;
+            tlb_mat0 [w_index] <= w_mat0;
+            tlb_d0   [w_index] <= w_d0;
+            tlb_v0   [w_index] <= w_v0;
             
             /* PPN1 | PLV1 | MAT1 | D1 | V1 */
-            tlb_ppn1 [write_index] <= w_ppn1;
-            tlb_plv1 [write_index] <= w_plv1;
-            tlb_mat1 [write_index] <= w_mat1;
-            tlb_d1   [write_index] <= w_d1;
-            tlb_v1   [write_index] <= w_v1;
+            tlb_ppn1 [w_index] <= w_ppn1;
+            tlb_plv1 [w_index] <= w_plv1;
+            tlb_mat1 [w_index] <= w_mat1;
+            tlb_d1   [w_index] <= w_d1;
+            tlb_v1   [w_index] <= w_v1;
         end
         
         // INVTLB instruction

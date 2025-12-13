@@ -79,10 +79,24 @@ module csr(
                                              // TLBWR and TLBFILL(w_index)    
     /* ----- exp 19 ----- */
     // to MMU for addr translation
-    output wire [31:0] csr_crmd_rvalue,
-    output wire [31:0] csr_asid_rvalue,
-    output wire [31:0] csr_dmw0_rvalue,
-    output wire [31:0] csr_dmw1_rvalue 
+    // output wire [31:0] csr_crmd_rvalue,
+    // output wire [31:0] csr_asid_rvalue,
+    // output wire [31:0] csr_dmw0_rvalue,
+    // output wire [31:0] csr_dmw1_rvalue,
+
+    output reg  csr_dmw0_plv0,
+    output reg  csr_dmw0_plv3,
+    output reg  [1:0] csr_dmw0_mat,
+    output reg  [2:0] csr_dmw0_pseg,
+    output reg  [2:0] csr_dmw0_vseg,
+    output reg  csr_dmw1_plv0,
+    output reg  csr_dmw1_plv3,
+    output reg  [1:0] csr_dmw1_mat,
+    output reg  [2:0] csr_dmw1_pseg,
+    output reg  [2:0] csr_dmw1_vseg,
+    output wire csr_direct_addr,
+    output reg  [1:0]  csr_crmd_plv,
+    input  wire current_exc_fetch
     
 );
     // 当前模式信息CRMD
@@ -187,19 +201,21 @@ module csr(
     wire        tlb_tlbr_excep;
     
     /* ----- exp 19 ----- */
-    // DMW0
-    reg         csr_dmw0_plv0;
-    reg         csr_dmw0_plv3;
-    reg  [ 1:0] csr_dmw0_mat ;
-    reg  [ 2:0] csr_dmw0_pseg;
-    reg  [ 2:0] csr_dmw0_vseg;
+    // // DMW0
+    // reg         csr_dmw0_plv0;
+    // reg         csr_dmw0_plv3;
+    // reg  [ 1:0] csr_dmw0_mat ;
+    // reg  [ 2:0] csr_dmw0_pseg;
+    // reg  [ 2:0] csr_dmw0_vseg;
     
-    // DMW1
-    reg         csr_dmw1_plv0;
-    reg         csr_dmw1_plv3;
-    reg  [ 1:0] csr_dmw1_mat ;
-    reg  [ 2:0] csr_dmw1_pseg;
-    reg  [ 2:0] csr_dmw1_vseg;
+    // // DMW1
+    // reg         csr_dmw1_plv0;
+    // reg         csr_dmw1_plv3;
+    // reg  [ 1:0] csr_dmw1_mat ;
+    // reg  [ 2:0] csr_dmw1_pseg;
+    // reg  [ 2:0] csr_dmw1_vseg;
+
+    reg    current_exc_fetch_r;
 
     // exp 19: TLB related exception
     assign tlb_excep       = wb_ecode == `ECODE_PIF | wb_ecode == `ECODE_PPI | wb_ecode == `ECODE_PIL | 
@@ -268,6 +284,8 @@ module csr(
         end
     end
 
+    assign csr_direct_addr = csr_crmd_da;
+
     // PRMD的PPLV、PIE域
     always @(posedge clk) begin
         if (wb_ex) begin
@@ -317,14 +335,17 @@ module csr(
     // ESTAT的Ecode和EsubCode域
     always @(posedge clk) begin
         if (wb_ex) begin
-            csr_estat_ecode    <= wb_ecode;
-            csr_estat_esubcode <= wb_esubcode;
+            csr_estat_ecode     <= wb_ecode;
+            csr_estat_esubcode  <= wb_esubcode;
+            current_exc_fetch_r <= current_exc_fetch;
         end
     end
     
     // ERA的PC域
     always @(posedge clk) begin
-        if(wb_ex)
+        if(reset)
+            csr_era_data <= 32'b0;
+        else if(wb_ex)
             csr_era_data <= wb_pc;
         else if (csr_we && csr_num == `CSR_ERA) 
             csr_era_data <= csr_wmask[`CSR_ERA_PC] & csr_wvalue[`CSR_ERA_PC]
@@ -339,8 +360,7 @@ module csr(
                             // add TLB related fault
     always @(posedge clk) begin
         if (wb_ex && wb_ex_addr_err)
-        csr_badv_vaddr <= ((wb_ecode==`ECODE_ADE && wb_esubcode==`ESUBCODE_ADEF) | 
-                            wb_ecode == `ECODE_PIF) ? wb_pc : wb_vaddr;
+            csr_badv_vaddr <= current_exc_fetch ? wb_pc : wb_vaddr;
         // ADE & PIF are related to fetch, so store pc
     end
 
@@ -470,7 +490,7 @@ module csr(
         // for TLBRD, if TLB valid, write in VPPN, else write in 0
         
         else if (tlb_excep) begin
-            csr_tlbehi_vppn <= (wb_ecode == `ECODE_PIF) ? wb_pc[31:13] : wb_vaddr[31:13];
+            csr_tlbehi_vppn <= current_exc_fetch ? wb_pc[31:13] : wb_vaddr[31:13];
         end
         // for TLB related fault, write error vaddr, for PIF（取值页无效） write pc
         

@@ -95,13 +95,19 @@ wire [ 5:0]  wb_ecode; //异常类型
 wire [ 8:0]  wb_esubcode; //异常类型
 wire [31:0]  wb_pc; //写回的返回地址
 
+//TLB_CSR
+wire [ 7:0] fs_tlb_exc;
+wire [ 7:0] ds_tlb_exc;
+wire [ 7:0] es2ms_tlb_exc;
+wire [ 7:0] ms2ws_tlb_exc;
+
 //IF阶段产生adef异常
 wire        fs_adef_ex;
 
 //exception zip
 wire [84:0] ds_ex_zip;
-wire [85:0] es_ex_zip;
-wire [85:0] ms_ex_zip;
+wire [86:0] es_ex_zip;
+wire [86:0] ms_ex_zip;
 
 wire        ds_csr_re;
 wire        es_csr_re;
@@ -207,12 +213,22 @@ wire [15:0] ms_tlb_blk_zip;
 wire        wb_refetch_flush;
 
 /* ----- output csr in exp 19 ----- */
-wire [31:0] csr_crmd_rvalue;
-wire [31:0] csr_asid_rvalue;
-wire [31:0] csr_dmw0_rvalue;
-wire [31:0] csr_dmw1_rvalue; 
+// wire [31:0] csr_crmd_rvalue;
+// wire [31:0] csr_asid_rvalue;
+// wire [31:0] csr_dmw0_rvalue;
+// wire [31:0] csr_dmw1_rvalue; 
+wire [2:0] csr_dmw0_pseg;
+wire [2:0] csr_dmw0_vseg;
+wire [2:0] csr_dmw1_pseg;
+wire [2:0] csr_dmw1_vseg;
+wire       csr_dmw0_plv0;
+wire       csr_dmw0_plv3;
+wire       csr_dmw1_plv0;
+wire       csr_dmw1_plv3;
+wire       csr_direct_addr;
+wire [1:0] crmd_plv_CSRoutput;
 
-
+wire       current_exc_fetch;
 
 
 assign ertn_entry_target = ertn_flush ? ertn_entry :
@@ -248,7 +264,28 @@ IF_stage u_IF_stage(
     .ex_entry(ex_entry),
     .ertn_entry(ertn_entry_target),
     
-    .fs_adef_ex(fs_adef_ex)
+    .fs_adef_ex(fs_adef_ex),
+
+    .s0_vppn    (s0_vppn   ),
+    .s0_va_bit12(s0_va_bit12),
+    .s0_found   (s0_found  ),
+    .s0_index   (s0_index  ),
+    .s0_ppn     (s0_ppn    ),
+    .s0_ps      (s0_ps     ),
+    .s0_plv     (s0_plv    ),
+    .s0_v       (s0_v      ),
+    .crmd_plv_CSRoutput(crmd_plv_CSRoutput),
+    .csr_dmw0_pseg(csr_dmw0_pseg),
+    .csr_dmw0_vseg(csr_dmw0_vseg),
+    .csr_dmw1_pseg(csr_dmw1_pseg),
+    .csr_dmw1_vseg(csr_dmw1_vseg),
+    .csr_dmw0_plv0(csr_dmw0_plv0),
+    .csr_dmw0_plv3(csr_dmw0_plv3),
+    .csr_dmw1_plv0(csr_dmw1_plv0),
+    .csr_dmw1_plv3(csr_dmw1_plv3),
+    .csr_direct_addr(csr_direct_addr),
+
+    .fs_tlb_exc(fs_tlb_exc)
 );
 
 ID_stage u_ID_stage(
@@ -311,7 +348,10 @@ ID_stage u_ID_stage(
     .es_tlb_blk_zip (es_tlb_blk_zip),
     .ms_tlb_blk_zip (ms_tlb_blk_zip),
 
-    .ds2es_tlb_zip  (ds2es_tlb_zip)
+    .ds2es_tlb_zip  (ds2es_tlb_zip),
+
+    .fs_tlb_exc(fs_tlb_exc),
+    .ds_tlb_exc(ds_tlb_exc)
 );
 
 EX_stage u_EX_stage(
@@ -389,7 +429,21 @@ EX_stage u_EX_stage(
     .s1_d        (s1_d      ),
     .s1_v        (s1_v      ),
     .tlbehi_vppn_CSRoutput(tlbehi_vppn_CSRoutput),
-    .asid_CSRoutput(asid_CSRoutput)
+    .asid_CSRoutput(asid_CSRoutput),
+
+    .crmd_plv_CSRoutput(crmd_plv_CSRoutput),
+    .csr_dmw0_pseg(csr_dmw0_pseg),
+    .csr_dmw0_vseg(csr_dmw0_vseg),
+    .csr_dmw1_pseg(csr_dmw1_pseg),
+    .csr_dmw1_vseg(csr_dmw1_vseg),
+    .csr_dmw0_plv0(csr_dmw0_plv0),
+    .csr_dmw0_plv3(csr_dmw0_plv3),
+    .csr_dmw1_plv0(csr_dmw1_plv0),
+    .csr_dmw1_plv3(csr_dmw1_plv3),
+    .csr_direct_addr(csr_direct_addr),
+
+    .ds_tlb_exc(ds_tlb_exc),
+    .es2ms_tlb_exc(es2ms_tlb_exc)
 );
 
 MEM_stage u_MEM_stage(
@@ -436,7 +490,10 @@ MEM_stage u_MEM_stage(
     .ms2ws_tlb_zip(ms2ws_tlb_zip),
     
     .es_csr_re(es_csr_re),
-    .ms_csr_re(ms_csr_re)
+    .ms_csr_re(ms_csr_re),
+
+    .es2ms_tlb_exc(es2ms_tlb_exc),
+    .ms2ws_tlb_exc(ms2ws_tlb_exc)
 );
 
 WB_stage u_WB_stage(
@@ -490,11 +547,15 @@ WB_stage u_WB_stage(
     .wb_tlbsrch_idxgot(wb_tlbsrch_idxgot),
     .wb_refetch_flush(wb_refetch_flush),
 
-    .ms2ws_tlb_zip(ms2ws_tlb_zip)
+    .ms2ws_tlb_zip(ms2ws_tlb_zip),
+
+    .current_exc_fetch(current_exc_fetch),
+
+    .ms2ws_tlb_exc(ms2ws_tlb_exc)
 );
 
 csr u_csr(
-        .clk      (clk      ),
+        .clk        (clk      ),
         .reset      (~resetn   ),
         
         .csr_re     (csr_re    ),
@@ -566,10 +627,17 @@ csr u_csr(
         
         
         /* ----- output csr in exp 19 ----- */
-        .csr_crmd_rvalue(csr_crmd_rvalue),
-        .csr_asid_rvalue(csr_asid_rvalue),
-        .csr_dmw0_rvalue(csr_dmw0_rvalue),
-        .csr_dmw1_rvalue(csr_dmw1_rvalue)
+        .csr_crmd_plv (crmd_plv_CSRoutput),
+        .csr_dmw0_pseg(csr_dmw0_pseg),
+        .csr_dmw0_vseg(csr_dmw0_vseg),
+        .csr_dmw1_pseg(csr_dmw1_pseg),
+        .csr_dmw1_vseg(csr_dmw1_vseg),
+        .csr_dmw0_plv0(csr_dmw0_plv0),
+        .csr_dmw0_plv3(csr_dmw0_plv3),
+        .csr_dmw1_plv0(csr_dmw1_plv0),
+        .csr_dmw1_plv3(csr_dmw1_plv3),
+        .csr_direct_addr(csr_direct_addr),
+        .current_exc_fetch(current_exc_fetch)
     
     );
     
@@ -579,7 +647,7 @@ tlb u_tlb(
         
         .s0_vppn    (s0_vppn),
         .s0_va_bit12(s0_va_bit12),
-        .s0_asid    (s0_asid),
+        .s0_asid    (asid_CSRoutput),
         .s0_found   (s0_found),
         .s0_index   (s0_index),
         .s0_ppn     (s0_ppn),

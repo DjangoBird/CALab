@@ -37,15 +37,20 @@ module MEM_stage(
     output wire        ms_ex,
     input  wire        wb_ex,
     
-    input  wire [85:0] es_ex_zip,//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex}
-    output reg  [85:0] ms_ex_zip,//{ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex}
+    input  wire [86:0] es_ex_zip,//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex, es_adem_ex}
+    output reg  [86:0] ms_ex_zip,//{ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex, ms_adem_ex}
 
     input wire         es_csr_re,
     output reg         ms_csr_re,
 
     input  wire [ 9:0] es2ms_tlb_zip,
     output wire [ 9:0] ms2ws_tlb_zip,
-    output wire [15:0] ms_tlb_blk_zip
+    output wire [15:0] ms_tlb_blk_zip,
+
+    input  wire [ 7:0] es2ms_tlb_exc,
+    output wire [ 7:0] ms2ws_tlb_exc
+
+
 );
 
 wire ms_ready_go;
@@ -86,7 +91,7 @@ reg  ms_wait_data_ok_reg;
 assign ms_wait_data_ok = ms_wait_data_ok_reg & ms_valid & !wb_ex & !ms_ex;
 
 
-assign ms_ex = (|ms_ex_zip[6:0]) && ms_valid & ~ms_refetch_flag;
+assign ms_ex = ((|ms_ex_zip[7:0]) | (|es2ms_tlb_exc)) && ms_valid & ~ms_refetch_flag;
 
 //指令接收数据要等待数据返回握手完成（data_ok正在或已经为1）
 assign ms_ready_go    = !ms_wait_data_ok | ms_wait_data_ok & data_sram_data_ok;
@@ -103,35 +108,35 @@ end
 reg [4:0] ms_ld_inst;
 always @(posedge clk) begin
     if (!resetn) begin
-        ms_pc            <= 32'b0;
-        ms_alu_result    <= 32'b0;
-        ms_res_from_mem  <= 1'b0;
-        ms_rf_waddr      <= 5'b0;
-        ms_rf_we         <= 1'b0;
-        ms_ld_inst       <= 5'b0;
+        ms_pc               <= 32'b0;
+        ms_alu_result       <= 32'b0;
+        ms_res_from_mem     <= 1'b0;
+        ms_rf_waddr         <= 5'b0;
+        ms_rf_we            <= 1'b0;
+        ms_ld_inst          <= 5'b0;
         ms_wait_data_ok_reg <= 1'b0;
-        ms_csr_re        <= 1'b0;
-        ms_ex_zip        <= 86'b0;
-        ms_result        <=32'b0;
+        ms_csr_re           <= 1'b0;
+        ms_ex_zip           <= 87'b0;
+        ms_result           <=32'b0;
     end
     else if (es_to_ms_valid && ms_allowin) begin
-        ms_pc           <= es_pc;
-        ms_alu_result   <= es_alu_result;
-        ms_res_from_mem <= es_res_from_mem;
-        ms_rf_waddr     <= es_rf_waddr;
-        ms_rf_we        <= es_rf_we;
-        ms_ld_inst      <= es_ld_inst;
+        ms_pc               <= es_pc;
+        ms_alu_result       <= es_alu_result;
+        ms_res_from_mem     <= es_res_from_mem;
+        ms_rf_waddr         <= es_rf_waddr;
+        ms_rf_we            <= es_rf_we;
+        ms_ld_inst          <= es_ld_inst;
         ms_wait_data_ok_reg <= es_mem_req;
         // pass through csr read request and exception zip when transfer occurs
-        ms_csr_re        <= es_csr_re;
-        ms_ex_zip        <= es_ex_zip;
-        ms_result        <= es_result;
+        ms_csr_re           <= es_csr_re;
+        ms_ex_zip           <= es_ex_zip;
+        ms_result           <= es_result;
     end
     else if(ms_allowin) begin
         ms_rf_we        <= 1'b0;
         ms_res_from_mem <= 1'b0;
         ms_wait_data_ok_reg <= 1'b0;
-        ms_ex_zip       <= 86'b0;
+        ms_ex_zip       <= 87'b0;
     end
 end
 
@@ -150,12 +155,13 @@ assign ms_mem_result[31:16]={16{op_ld_b}} & {16{shift_rdata[7]}} |
 assign ms_rf_wdata = ms_res_from_mem ? ms_mem_result : ms_result;
 
 //csr
-assign {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex} = ms_ex_zip;
+assign {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex, ms_adem_ex} = ms_ex_zip;
 
 //TLB
 assign {ms_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, tlbsrch_found, tlbsrch_idxgot} = es2ms_tlb_zip;
 assign ms2ws_tlb_zip = es2ms_tlb_zip;
 assign ms_tlb_blk_zip = {inst_tlbrd & ms_valid, ms_csr_we & ms_valid, ms_csr_num};
+assign ms2ws_tlb_exc = es2ms_tlb_exc;
 
 endmodule
 

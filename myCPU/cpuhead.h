@@ -111,3 +111,14 @@
 `define ECODE_INE   6'hd
 `define ECODE_TLBR      6'h3f
 `define ESUBCODE_ADEF   9'h0
+`define ESUBCODE_ADEM 9'b01
+
+`define EARRAY_TLBR_FETCH 0 //refill
+`define EARRAY_PIL 1 //Load
+`define EARRAY_PIS 2 //store
+`define EARRAY_PIF 3 //inst fetch
+`define EARRAY_PME 4 
+`define EARRAY_PPI_FETCH 5
+`define EARRAY_TLBR_MEM 6
+`define EARRAY_PPI_MEM 7
+

@@ -33,7 +33,34 @@ module IF_stage(
     input  wire [31:0]  ex_entry,
     input  wire [31:0]  ertn_entry,
     
-    output wire         fs_adef_ex
+    output wire         fs_adef_ex,
+
+    //TLB
+    output wire [18:0] s0_vppn,           //vpn2
+    output wire        s0_va_bit12,       //va[12]  
+    input  wire        s0_found,          //TLB hit
+    input  wire [ 3:0] s0_index,          //TLB hit index
+    input  wire [19:0] s0_ppn,            //ppn
+    input  wire [ 5:0] s0_ps,             //page size
+    input  wire [ 1:0] s0_plv,            //权限级
+    input  wire        s0_v,              //valid
+
+    //from CSR
+    input  wire [ 1:0] crmd_plv_CSRoutput, //当前特权级
+    //DMW0
+    input  wire        csr_dmw0_plv0,
+    input  wire        csr_dmw0_plv3,
+    input  wire [ 2:0] csr_dmw0_pseg,
+    input  wire [ 2:0] csr_dmw0_vseg,
+    //DMW1
+    input  wire        csr_dmw1_plv0,
+    input  wire        csr_dmw1_plv3,
+    input  wire [ 2:0] csr_dmw1_pseg,
+    input  wire [ 2:0] csr_dmw1_vseg,
+
+    input  wire        csr_direct_addr,
+
+    output wire [ 7:0] fs_tlb_exc
 );
 
 wire pf_ready_go;
@@ -57,12 +84,24 @@ reg  [31:0] ex_entry_reg;
 reg  [31:0] ertn_entry_reg;
 
 wire [31:0] seq_pc;
-wire [31:0] nextpc;
+// wire [31:0] nextpc;
+wire [31:0] nextpc_v;
+wire [31:0] nextpc_p;
 
 reg  [31:0] fs_inst_buf;
 reg         fs_inst_buf_valid;
 
-reg         inst_sram_addr_ack;//
+reg         inst_sram_addr_ack;
+
+//TLB
+//addr translation
+wire        dmw0_hit;
+wire        dmw1_hit;
+wire [31:0] dmw0_paddr;
+wire [31:0] dmw1_paddr;
+wire [31:0] tlb_paddr;
+wire        tlb_used;
+
 
 //cancel logic
 assign fs_cancel = br_taken | wb_ex | ertn_flush;
@@ -169,12 +208,12 @@ end
 //pre_IF 生成nextPC
 //遇到cancel信号而未等到ready_go时，将cancel相关信号存在寄存器中，等到ready_go时再使用
 assign seq_pc = fs_pc + 32'h4;
-assign nextpc = wb_ex_reg ? ex_entry_reg:
-                wb_ex ? ex_entry:
-                ertn_flush_reg ? ertn_entry_reg:
-                ertn_flush ? ertn_entry:
-                br_taken_reg ? br_target_reg:
-                br_taken ? br_target : seq_pc;//异常 or 返回 or 跳转 or 顺序
+assign nextpc_v = wb_ex_reg ? ex_entry_reg:
+                  wb_ex ? ex_entry:
+                  ertn_flush_reg ? ertn_entry_reg:
+                  ertn_flush ? ertn_entry:
+                  br_taken_reg ? br_target_reg:
+                  br_taken ? br_target : seq_pc;//异常 or 返回 or 跳转 or 顺序
 
 assign fs_inst = fs_inst_buf_valid ? fs_inst_buf : inst_sram_rdata; 
 
@@ -182,19 +221,43 @@ assign fs_inst = fs_inst_buf_valid ? fs_inst_buf : inst_sram_rdata;
 assign inst_sram_req   = fs_allowin & resetn & (~br_stall | wb_ex | ertn_flush) & ~pf_block & ~inst_sram_addr_ack;//16
 assign inst_sram_wr    = (|inst_sram_wstrb);
 assign inst_sram_wstrb = 4'b0;
-assign inst_sram_addr  = nextpc;
+assign inst_sram_addr  = nextpc_p;
 assign inst_sram_wdata = 32'b0;
-assign inst_sram_size  = 2'b10;
+assign inst_sram_size  = 3'b0;
 
 always @(posedge clk) begin
     if (!resetn)
         fs_pc <= 32'h1bfffffc;
     else if (to_fs_valid & fs_allowin)
-        fs_pc <= nextpc;
+        fs_pc <= nextpc_v;
 end
 
 
-assign fs_adef_ex = (nextpc[1:0] != 2'b00) & fs_valid;
+assign fs_adef_ex = (nextpc_v[1:0] != 2'b00) & fs_valid;
+
+
+//TLB
+assign {s0_vppn, s0_va_bit12} = nextpc_v[31:12];
+assign dmw0_hit = (nextpc_v[31:29] == csr_dmw0_vseg) & (crmd_plv_CSRoutput == 2'd0 && csr_dmw0_plv0 || crmd_plv_CSRoutput == 2'd3 && csr_dmw0_plv3);
+assign dmw1_hit = (nextpc_v[31:29] == csr_dmw1_vseg) & (crmd_plv_CSRoutput == 2'd0 && csr_dmw1_plv0 || crmd_plv_CSRoutput == 2'd3 && csr_dmw1_plv3);
+
+assign dmw0_paddr = {csr_dmw0_pseg, nextpc_v[28:0]};
+assign dmw1_paddr = {csr_dmw1_pseg, nextpc_v[28:0]};
+
+assign tlb_paddr = (s0_ps == 6'd22) ? {s0_ppn[19:10], nextpc_v[21:0]} :
+                                      {s0_ppn, nextpc_v[11:0]};
+assign nextpc_p = csr_direct_addr ? nextpc_v :
+                  dmw0_hit ?        dmw0_paddr :
+                  dmw1_hit ?        dmw1_paddr :
+                                    tlb_paddr;
+
+assign tlb_used = !csr_direct_addr && !dmw0_hit && !dmw1_hit;
+
+
+assign {fs_tlb_exc[`EARRAY_PIL], fs_tlb_exc[`EARRAY_PIS], fs_tlb_exc[`EARRAY_PME], fs_tlb_exc[`EARRAY_TLBR_MEM], fs_tlb_exc[`EARRAY_PPI_MEM]} = 5'h0;
+assign fs_tlb_exc[`EARRAY_TLBR_FETCH] = fs_valid & tlb_used & ~s0_found;
+assign fs_tlb_exc[`EARRAY_PIF] = fs_valid & tlb_used & ~s0_v & ~fs_tlb_exc[`EARRAY_TLBR_FETCH];
+assign fs_tlb_exc[`EARRAY_PPI_FETCH] = fs_valid & tlb_used & ~fs_tlb_exc[`EARRAY_PIF] & (crmd_plv_CSRoutput > s0_plv);//权限不足
 
 endmodule
 
