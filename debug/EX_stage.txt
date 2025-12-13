@@ -54,17 +54,12 @@ module EX_stage(
     
     input wire inst_rdcntvh,
     input wire inst_rdcntvl,
-
-    //from ds: exception and TLB
+    
     input wire  [84:0] ds_ex_zip,//{ds_csr_we, ds_csr_wmask, ds_csr_wvalue, ds_csr_num, inst_ertn, has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex}
     input wire  [10:0] ds2es_tlb_zip,
-
-    //to ms: exception and TLB
     output wire [85:0] es_ex_zip,//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex}
     output wire [ 9:0] es2ms_tlb_zip,
-
-    //to id: for TLB
-    output wire [15:0] es_tlb_blk_zip,
+    output wire [10:0] es_tlb_blk_zip,
 
     //TLB
     output wire [ 4:0] invtlb_op,
@@ -123,6 +118,7 @@ wire        inst_tlbrd;
 wire        inst_tlbwr;
 wire        inst_tlbfill;
 wire        es_refetch_flag;
+wire [ 9:0] es2ms_tlb_zip;
 
 reg [63:0] time_counter;
 //time_counter
@@ -163,7 +159,7 @@ always @(posedge clk) begin
         es_ld_inst      <= 5'b0;
         es_st_inst      <= 3'b0;
         
-        es_ex_zip_reg   <= 85'b0;
+        es_ex_zip_reg       <= 85'b0;
         es_csr_re       <= 1'b0;
     end
     else if (ds_to_es_valid && es_allowin) begin
@@ -179,14 +175,14 @@ always @(posedge clk) begin
         es_ld_inst      <= mem_inst[4:0];
         es_st_inst      <= mem_inst[7:5];
         
-        es_ex_zip_reg   <= ds_ex_zip;
+        es_ex_zip_reg       <= ds_ex_zip;
         // propagate csr read request from ID stage when the transfer occurs
         es_csr_re       <= ds_csr_re;
     end
     else if(es_allowin) begin
         es_rf_we        <= 1'b0;
         es_res_from_mem <= 1'b0;
-        es_ex_zip_reg   <= 85'b0;
+        es_ex_zip_reg       <= 85'b0;
     end
 end
 
@@ -234,14 +230,12 @@ assign es_ex_zip ={es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, 
 
 //TLB
 assign {es_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op} = ds2es_tlb_zip;
-assign es2ms_tlb_zip = {es_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, s1_found, s1_index};
-
 assign {s1_vppn, s1_va_bit12} = inst_invtlb  ? es_rkd_value[31:12] :
                                 inst_tlbsrch ? {tlbehi_vppn_CSRoutput, 1'b0} :
                                 es_alu_result[31:12];
-
 assign s1_asid = inst_invtlb ? es_alu_src1[ 9:0] : asid_CSRoutput;
 
+assign es2ms_tlb_zip = {es_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, s1_found, s1_index};
 assign es_tlb_blk_zip = {inst_tlbrd & es_valid, es_csr_we & es_valid, es_csr_num};
 
 

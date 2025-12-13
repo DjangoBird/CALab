@@ -1,26 +1,26 @@
 `include "cpuhead.h"
 module MEM_stage(
-    input  wire         clk,
-    input  wire         resetn,
+    input wire         clk,
+    input wire         resetn,
     
     //allowin
-    input  wire         ws_allowin,
-    output wire         ms_allowin,
+    input  wire        ws_allowin,
+    output wire        ms_allowin,
     
     //from es
-    input  wire        es_to_ms_valid,
-    input  wire [31:0] es_pc,
-    input  wire        es_res_from_mem,
-    input  wire [31:0] es_alu_result,
-    input  wire [ 4:0] es_rf_waddr,
-    input  wire        es_rf_we,
-    input  wire        es_mem_req,
+    input wire         es_to_ms_valid,
+    input wire [31:0]  es_pc,
+    input wire         es_res_from_mem,
+    input wire [31:0]  es_alu_result,
+    input wire [ 4:0]  es_rf_waddr,
+    input wire         es_rf_we,
+    input wire         es_mem_req,
     
-    input  wire [31:0] es_result,
-    output reg  [31:0] ms_result,
+    input wire [31:0] es_result,
+    output reg [31:0] ms_result,
     
     //to ws
-    output wire        ms_to_ws_valid,
+    output wire         ms_to_ws_valid,
     output reg  [31:0] ms_pc,
     
     //to id: for load-use
@@ -31,21 +31,21 @@ module MEM_stage(
     input  wire [ 4:0] es_ld_inst,
 
     //data sram interface
-    input  wire        data_sram_data_ok,
-    input  wire [31:0] data_sram_rdata,
+    input wire        data_sram_data_ok,
+    input wire  [31:0] data_sram_rdata,
     
     output wire        ms_ex,
     input  wire        wb_ex,
     
-    input  wire [85:0] es_ex_zip,//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex}
+    input wire  [85:0] es_ex_zip,//{es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex}
     output reg  [85:0] ms_ex_zip,//{ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex}
 
-    input wire         es_csr_re,
-    output reg         ms_csr_re,
+    input wire es_csr_re,
+    output reg ms_csr_re,
 
-    input  wire [ 9:0] es2ms_tlb_zip,
+    input wire  [ 9:0] es2ms_tlb_zip,
     output wire [ 9:0] ms2ws_tlb_zip,
-    output wire [15:0] ms_tlb_blk_zip
+    output wire [10:0] ms_tlb_blk_zip
 );
 
 wire ms_ready_go;
@@ -70,13 +70,13 @@ wire        ms_ertn;
 wire        ms_ale_ex;
 
 //TLB
+reg  [ 9:0] es2ms_tlb_zip_reg;
 wire        inst_tlbsrch;
 wire        inst_tlbrd;
 wire        inst_tlbwr;
 wire        inst_tlbfill;
 wire        ms_refetch_flag;
-wire        tlbsrch_found;
-wire [ 3:0] tlbsrch_idxgot;
+wire [ 3:0] tlbsrch_found;
 
 
 //类SRAM接口
@@ -113,6 +113,7 @@ always @(posedge clk) begin
         ms_csr_re        <= 1'b0;
         ms_ex_zip        <= 86'b0;
         ms_result        <=32'b0;
+        es2ms_tlb_zip_reg<= 10'b0;
     end
     else if (es_to_ms_valid && ms_allowin) begin
         ms_pc           <= es_pc;
@@ -126,6 +127,7 @@ always @(posedge clk) begin
         ms_csr_re        <= es_csr_re;
         ms_ex_zip        <= es_ex_zip;
         ms_result        <= es_result;
+        es2ms_tlb_zip_reg<= es2ms_tlb_zip;
     end
     else if(ms_allowin) begin
         ms_rf_we        <= 1'b0;
@@ -149,12 +151,12 @@ assign ms_mem_result[31:16]={16{op_ld_b}} & {16{shift_rdata[7]}} |
 
 assign ms_rf_wdata = ms_res_from_mem ? ms_mem_result : ms_result;
 
-//csr
-assign {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex} = ms_ex_zip;
+
 
 //TLB
-assign {ms_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, tlbsrch_found, tlbsrch_idxgot} = es2ms_tlb_zip;
-assign ms2ws_tlb_zip = es2ms_tlb_zip;
+assign {ms_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, tlbsrch_found, tlb_srch_idxgot} = es2ms_tlb_zip;
+assign ms2ws_tlb_zip = es2ms_tlb_zip_reg;
+assign {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num} = ms_ex_zip[85:7];
 assign ms_tlb_blk_zip = {inst_tlbrd & ms_valid, ms_csr_we & ms_valid, ms_csr_num};
 
 endmodule

@@ -58,11 +58,10 @@ module ID_stage(
     input wire ms_ex,
     output wire ds_csr_re,
 
-    input wire [15:0]es_tlb_blk_zip,
-    input wire [15:0]ms_tlb_blk_zip,
+    input wire [10:0]es_tlb_blk_zip,
+    input wire [10:0]ms_tlb_blk_zip,
 
     output wire [84:0] ds_ex_zip,//{ds_csr_we, ds_csr_wmask, ds_csr_wvalue, ds_csr_num, has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex, inst_ertn}
-
     output wire [10:0] ds2es_tlb_zip,//{id_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op}
 
     input wire fs_adef_ex,
@@ -420,7 +419,7 @@ wire exception    = inst_break | inst_syscall | inst_csrrd | inst_csrwr | inst_c
 wire remain  = inst_lu12i_w | inst_pcaddul2i | inst_rdcntid | inst_rdcntvl | inst_rdcntvh;
 
 //tlb_op>7视为未定义
-wire tlb = (inst_tlbfill || inst_tlbrd || inst_tlbsrch || inst_tlbwr || inst_invtlb) && (invtlb_op < 5'h07);
+wire tlb = (inst_tlbfill || inst_tlbrd || inst_tlbsrch || inst_tlbwr || inst_invtlb) && invtlb_op < 5'h07;
 
 assign mem_inst = {inst_st_b, inst_st_h, inst_st_w, inst_ld_b, inst_ld_bu,inst_ld_h, inst_ld_hu, inst_ld_w};
 
@@ -562,13 +561,12 @@ assign ds_csr_num    = inst_ertn ? `CSR_ERA :
 
 wire   ds_sys_ex = inst_syscall;
 wire   ds_brk_ex = inst_break;
-//debug
 wire   ds_ine_ex = ~(cal | cal_i | branch_uncond | branch_cond | load | store | exception | remain | tlb) & ds_valid;
 
 
 assign ds_ex_zip = {ds_csr_we, ds_csr_wmask, ds_csr_wvalue, ds_csr_num, inst_ertn, has_int, ds_adef_ex, ds_sys_ex, ds_brk_ex, ds_ine_ex};
 
-//  DA/PG      DMW    ASID(switch)
+
 assign id_refetch_flag = inst_invtlb | inst_tlbrd | inst_tlbwr | inst_tlbfill | (ds_csr_we && (ds_csr_num == `CSR_CRMD && (|ds_csr_wmask[4:3]) || ds_csr_num == `CSR_DMW0 || ds_csr_num == `CSR_DMW1 || ds_csr_num == `CSR_ASID));
 
 assign invtlb_op = ds_inst[4:0];

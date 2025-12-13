@@ -82,18 +82,18 @@ wire        csr_re;
 wire        csr_we;
 wire [31:0] csr_wmask;
 wire [31:0] csr_wvalue;
-wire [31:0] ex_entry; //送往pre-IF的异常处理入口地址
-wire [31:0] ertn_entry; //送往pre-IF的返回入口地址
-wire [31:0] ertn_entry_target;
+wire [31:0]   ex_entry; //送往pre-IF的异常处理入口地址
+wire [31:0]   ertn_entry; //送往pre-IF的返回入口地址
+wire [31:0]   ertn_entry_target;
 
-wire        has_int; //送往ID流水级的中断有效信号
+wire          has_int; //送往ID流水级的中断有效信号
 wire        ertn_flush; //来自WB流水级的ertn指令执行有效信号
 
-wire         ms_ex;   
-wire         wb_ex; //来自WB流水级的异常处理触发信号
-wire [ 5:0]  wb_ecode; //异常类型
-wire [ 8:0]  wb_esubcode; //异常类型
-wire [31:0]  wb_pc; //写回的返回地址
+wire        ms_ex;   
+wire        wb_ex; //来自WB流水级的异常处理触发信号
+wire [ 5:0] wb_ecode; //异常类型
+wire [ 8:0] wb_esubcode; //异常类型
+wire  [31:0] wb_pc; //写回的返回地址
 
 //IF阶段产生adef异常
 wire        fs_adef_ex;
@@ -147,14 +147,12 @@ wire        s1_v;
 wire [ 4:0] invtlb_op;
 wire        invtlb_valid;
 // write port
-wire inst_wb_tlbfill;
-
 wire        tlb_we;
 wire [ 3:0] w_index;
 wire        w_e;
-wire [18:0] tlbehi_vppn_CSRoutput;
+wire [18:0] w_vppn;
 wire [ 5:0] w_ps;
-wire [ 9:0] asid_CSRoutput;
+wire [ 9:0] w_asid;
 wire        w_g;
 
 wire [19:0] w_ppn0;
@@ -188,36 +186,46 @@ wire [ 1:0] r_mat1;
 wire        r_d1;
 wire        r_v1;
 
-//CSR-TLB
-wire        inst_wb_tlbsrch;
-wire        wb_tlbsrch_found;
-wire [ 3:0] wb_tlbsrch_idxgot;
-wire [ 3:0] csr_tlbidx_index;
-wire        inst_wb_tlbrd;
-
-/*tlb-zip in exp 18*/
+/*zip in exp 18*/
 wire [10:0] ds2es_tlb_zip;
 wire [ 9:0] es2ms_tlb_zip;
 wire [ 9:0] ms2ws_tlb_zip;
+wire [18:0] tlbehi_vppn_CSRoutput;
+wire [ 9:0] asid_CSRoutput;
 
-//TLB block
-wire [15:0] es_tlb_blk_zip;
-wire [15:0] ms_tlb_blk_zip;
 
-wire        wb_refetch_flush;
+/* ----- input to csr in exp 18 ----- */
+wire        tlbrd_we;
+wire        tlbsrch_we;
+wire        tlbsrch_hit;
+wire [ 3:0] tlbsrch_idx;
 
+/* ----- output csr in exp 18 ----- */
+wire [ 9:0] csr_asid_asid;
+wire [18:0] csr_tlbehi_vppn;
+wire [ 3:0] csr_tlbidx_index;
 /* ----- output csr in exp 19 ----- */
 wire [31:0] csr_crmd_rvalue;
 wire [31:0] csr_asid_rvalue;
 wire [31:0] csr_dmw0_rvalue;
 wire [31:0] csr_dmw1_rvalue; 
 
+//TLB_BLOCK
+wire [10:0] es_tlb_blk_zip;
+wire [10:0] ms_tlb_blk_zip;
 
-
+wire        wb_refetch_flush;
 
 assign ertn_entry_target = ertn_flush ? ertn_entry :
                            debug_wb_pc + 32'd4;
 
+// TLB相关未声明信号补全
+wire        inst_wb_tlbfill;
+wire        inst_wb_tlbsrch;
+wire        tlbwe;
+wire        inst_wb_tlbrd;
+wire        wb_tlbsrch_found;
+wire        wb_tlbsrch_idxgot;
 
 IF_stage u_IF_stage(
     .clk            (clk            ),
@@ -310,7 +318,6 @@ ID_stage u_ID_stage(
 
     .es_tlb_blk_zip (es_tlb_blk_zip),
     .ms_tlb_blk_zip (ms_tlb_blk_zip),
-
     .ds2es_tlb_zip  (ds2es_tlb_zip)
 );
 
@@ -367,14 +374,11 @@ EX_stage u_EX_stage(
     
     .ds_ex_zip(ds_ex_zip),
     .es_ex_zip(es_ex_zip),
-
-    //to id
     .es_tlb_blk_zip(es_tlb_blk_zip),
-    
-    //TLB
     .ds2es_tlb_zip(ds2es_tlb_zip),
     .es2ms_tlb_zip(es2ms_tlb_zip),
 
+    //TLB
     .invtlb_op   (invtlb_op),
     .inst_invtlb (invtlb_valid),
     .s1_vppn     (s1_vppn),
@@ -427,16 +431,13 @@ MEM_stage u_MEM_stage(
     
     .es_ex_zip(es_ex_zip),
     .ms_ex_zip(ms_ex_zip),
-    
-    //to id
     .ms_tlb_blk_zip(ms_tlb_blk_zip),
-    
-    //TLB
     .es2ms_tlb_zip(es2ms_tlb_zip),
     .ms2ws_tlb_zip(ms2ws_tlb_zip),
     
     .es_csr_re(es_csr_re),
     .ms_csr_re(ms_csr_re)
+
 );
 
 WB_stage u_WB_stage(
@@ -484,7 +485,9 @@ WB_stage u_WB_stage(
     //TLB
     .inst_wb_tlbfill(inst_wb_tlbfill),
     .inst_wb_tlbsrch(inst_wb_tlbsrch),
-    .tlb_we      (tlb_we),
+    .tlbsrch_we(tlbsrch_we),
+    .tlbrd_we(tlbrd_we),
+    .tlbwe      (tlbwe),
     .inst_wb_tlbrd(inst_wb_tlbrd),
     .wb_tlbsrch_found(wb_tlbsrch_found),
     .wb_tlbsrch_idxgot(wb_tlbsrch_idxgot),
@@ -520,10 +523,10 @@ csr u_csr(
         .wb_vaddr(wb_vaddr),
         
         /* input data from WB */
-        .tlbsrch_we        (inst_wb_tlbsrch),
-        .tlbsrch_hit       (wb_tlbsrch_found),
-        .tlbsrch_idx       (wb_tlbsrch_idxgot),
-        .tlbrd_we          (inst_wb_tlbrd),
+        .tlbsrch_we        (tlbsrch_we),
+        .tlbsrch_hit       (tlbsrch_hit),
+        .tlbsrch_idx       (tlbsrch_idx),
+        .tlbrd_we          (tlbrd_we),
         
         /* input data from TLB, TLBSRCH & TLBRD use these data to write CSR */
         .r_tlb_e         (r_e),
@@ -560,8 +563,8 @@ csr u_csr(
         .w_tlb_v1        (w_v1),
         
         /* ----- output csr in exp 18 ----- */
-        .csr_asid_asid   (asid_CSRoutput),
-        .csr_tlbehi_vppn (tlbehi_vppn_CSRoutput),
+        .csr_asid_asid   (csr_asid_asid),
+        .csr_tlbehi_vppn (csr_tlbehi_vppn),
         .csr_tlbidx_index(csr_tlbidx_index),
         
         
@@ -574,8 +577,7 @@ csr u_csr(
     );
     
 tlb u_tlb(
-        .clk        (clk),
-        .resetn     (~resetn),
+        .clk        (aclk),
         
         .s0_vppn    (s0_vppn),
         .s0_va_bit12(s0_va_bit12),
@@ -601,7 +603,7 @@ tlb u_tlb(
         .s1_d       (s1_d),
         .s1_v       (s1_v),
 
-        .invtlb_op   (invtlb_op),
+        .invtlb_op  (invtlb_op),
         .invtlb_valid(invtlb_valid),
 
         .inst_wb_tlbfill(inst_wb_tlbfill),

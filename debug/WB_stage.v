@@ -14,9 +14,9 @@ module WB_stage(
     input wire         ms_rf_we,
     
     //to id: for write back
-    output wire        ws_rf_we,
-    output reg  [ 4:0] ws_rf_waddr,
-    output wire [31:0] ws_rf_wdata,
+    output wire         ws_rf_we,
+    output reg  [ 4:0]  ws_rf_waddr,
+    output wire  [31:0] ws_rf_wdata,
 
     //trace debug
     output wire [31:0] debug_wb_pc,
@@ -25,9 +25,9 @@ module WB_stage(
     output wire [31:0] debug_wb_rf_wdata,
     
     //exception from ms
-    input wire  [85:0] ms_ex_zip,//{ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex}
-    input wire         ms_csr_re,
-    input wire  [31:0] ms_result,
+    input wire [85:0] ms_ex_zip,//{ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex}
+    input wire        ms_csr_re,
+    input wire [31:0] ms_result,
     
     // wb and csr interface
     output reg         csr_re,
@@ -50,11 +50,14 @@ module WB_stage(
     //TLB
     output wire        inst_wb_tlbfill,
     output wire        inst_wb_tlbsrch,
-    output wire        tlb_we,
+    output wire        tlbsrch_we,
+    output wire        tlbrd_we,
+    output wire        tlbwe,
     output wire        inst_wb_tlbrd,
     output wire        wb_tlbsrch_found,
     output wire [ 3:0] wb_tlbsrch_idxgot,
     output wire        wb_refetch_flush,
+
     input  wire [ 9:0] ms2ws_tlb_zip
 );
 
@@ -74,9 +77,9 @@ wire        wb_brk_ex;
 wire        wb_ine_ex;
 wire        wb_ale_ex;
 
-reg         ws_rf_we_reg;
+reg ws_rf_we_reg;
 
-wire        ertn_flush_tmp;
+wire ertn_flush_tmp;
 
 //TLB
 wire        inst_wb_tlbwr;
@@ -149,7 +152,9 @@ assign debug_wb_rf_wdata = ws_rf_wdata;
 
 //TLB
 assign {wb_refetch_flag, inst_wb_tlbsrch, inst_wb_tlbrd, inst_wb_tlbwr, inst_wb_tlbfill, wb_tlbsrch_found, wb_tlbsrch_idxgot} = ms2ws_tlb_zip;
-assign tlb_we = (inst_wb_tlbwr || inst_wb_tlbfill) && ws_valid;
+assign tlbsrch_we = inst_wb_tlbsrch && ws_valid;
+assign tlbrd_we = inst_wb_tlbrd && ws_valid;
+assign tlbwe = (inst_wb_tlbwr || inst_wb_tlbfill) && ws_valid;
 assign wb_refetch_flush = wb_refetch_flag && ws_valid;
 
 endmodule
