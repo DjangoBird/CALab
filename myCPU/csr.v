@@ -99,6 +99,12 @@ module csr(
     input  wire current_exc_fetch
     
 );
+    wire [31:0] csr_crmd_rvalue;
+    wire [31:0] csr_asid_rvalue;
+    wire [31:0] csr_dmw0_rvalue;
+    wire [31:0] csr_dmw1_rvalue;
+
+
     // 当前模式信息CRMD
     wire [31: 0] csr_crmd_data;
     reg  [ 1: 0] csr_crmd_plv;      //CRMD的PLV域，当前特权等级

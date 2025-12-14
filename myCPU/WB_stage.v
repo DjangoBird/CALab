@@ -89,6 +89,7 @@ wire        ws_adem_ex;
 //TLB
 wire        inst_wb_tlbwr;
 wire        wb_refetch_flag;
+reg  [ 7:0] ws_tlb_exc_r;
 
 assign ws_ready_go    = 1'b1;
 assign ws_allowin     = (!ws_valid || ws_ready_go) & (~wb_ex);
@@ -105,12 +106,13 @@ always @(posedge clk) begin
     if (!resetn) begin
         wb_pc            <= 32'b0;
         ws_from_ms_wdata <= 32'b0;
-        ws_rf_waddr      <= 5'b0;
-        ws_rf_we_reg     <= 1'b0;
+        ws_rf_waddr      <= 5'b0 ;
+        ws_rf_we_reg     <= 1'b0 ;
         
-        csr_re           <= 1'b0;
+        csr_re           <= 1'b0 ;
         ws_ex_zip        <= 87'b0;
         wb_vaddr         <= 32'b0;
+        ws_tlb_exc_r     <= 8'd0 ;
     end
     else if (ms_to_ws_valid && ws_allowin) begin
         wb_pc            <= ms_pc;
@@ -123,6 +125,7 @@ always @(posedge clk) begin
         ws_ex_zip        <= ms_ex_zip;
         wb_vaddr         <= ms_result;
         
+        ws_tlb_exc_r     <= ms2ws_tlb_exc;
     end
     else if(ws_allowin) begin
         ws_rf_we_reg     <= 1'b0;
@@ -156,7 +159,6 @@ assign wb_ecode = wb_has_int ? `ECODE_INT :
                   wb_ale_ex  ? `ECODE_ALE :
                   ws_adem_ex ? `ECODE_ADE :
                   6'b0;
-assign wb_esubcode = 9'b0;
 
 assign ipi_int_in   = 1'b0;
 assign hw_int_in    = 8'b0;
@@ -172,7 +174,7 @@ assign {wb_refetch_flag, inst_wb_tlbsrch, inst_wb_tlbrd, inst_wb_tlbwr, inst_wb_
 assign tlb_we = (inst_wb_tlbwr || inst_wb_tlbfill) && ws_valid;
 assign wb_refetch_flush = wb_refetch_flag && ws_valid;
 
-assign ws_tlb_exc = ms2ws_tlb_exc;
+assign ws_tlb_exc = ws_tlb_exc_r;
 
 assign current_exc_fetch = wb_adef_ex | ws_tlb_exc[`EARRAY_TLBR_FETCH] | ws_tlb_exc[`EARRAY_PIF] | ws_tlb_exc[`EARRAY_PPI_FETCH];
 

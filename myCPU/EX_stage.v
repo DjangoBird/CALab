@@ -202,7 +202,7 @@ always @(posedge clk) begin
         
         es_ex_zip_reg   <= 85'b0;
         es_csr_re       <= 1'b0;
-        es2ms_tlb_exc   <= 8'b0;
+        ds2es_tlb_exc   <= 8'b0;
     end
     else if (ds_to_es_valid && es_allowin) begin
         es_alu_op       <= ds_alu_op;
@@ -258,7 +258,7 @@ assign {op_ld_b,op_ld_bu,op_ld_h,op_ld_hu,op_ld_w} = es_ld_inst;
 
 assign es_mem_req       = ((|es_mem_we) || es_res_from_mem);
 assign data_sram_req    = es_valid & es_mem_req & ms_allowin & ~wb_ex & ~es_ex & ~ms_ex;
-assign data_sram_wr     = es_valid & ~es_ex & ~ms_ex & ~wb_ex & (|data_sram_wstrb);//发生异常时不可访�?
+assign data_sram_wr     = es_valid & ~es_ex & ~ms_ex & ~wb_ex & (|data_sram_wstrb);//发生异常时不可访存?
 assign data_sram_wstrb  = es_mem_we;
 assign data_sram_size   = op_ld_b | op_st_b ? 2'b00 :
                           op_ld_h | op_ld_hu | op_st_h ? 2'b01 :
@@ -308,12 +308,31 @@ assign tlb_used = (es_res_from_mem | (|es_mem_we)) & ~wb_ex & ~ms_ex & ~(|es_ex_
                   & (~csr_direct_addr & ~dmw0_hit & ~dmw1_hit);
 assign isstore  = |es_mem_we;
 assign isload   = es_res_from_mem;
+
+// 清零取指异常
 assign {es_tlb_exc[`EARRAY_PIF], es_tlb_exc[`EARRAY_TLBR_FETCH], es_tlb_exc[`EARRAY_PPI_FETCH]} = 3'b0;
-assign es_tlb_exc[`EARRAY_TLBR_MEM] = es_valid & es_res_from_mem & tlb_used & !s1_found;
-assign es_tlb_exc[`EARRAY_PIL ] = es_valid & tlb_used & isload  & !es_tlb_exc[`EARRAY_TLBR_MEM] & !s1_v;
-assign es_tlb_exc[`EARRAY_PIS ] = es_valid & tlb_used & isstore & !es_tlb_exc[`EARRAY_TLBR_MEM] & !s1_v;
-assign es_tlb_exc[`EARRAY_PPI_MEM] = es_valid & tlb_used & (isload | isstore) & !es_tlb_exc[`EARRAY_PIL] & !es_tlb_exc[`EARRAY_PIS] & (crmd_plv_CSRoutput > s1_plv);
-assign es_tlb_exc[`EARRAY_PME ] = es_valid & tlb_used & isstore & !es_tlb_exc[`EARRAY_PPI_MEM] & !s1_d;
+
+// TLB 重填 (Refill): 只要没找到，不管是 Load 还是 Store
+assign es_tlb_exc[`EARRAY_TLBR_MEM] = es_valid & tlb_used & (isload | isstore) & !s1_found;
+
+// 页无效 (Invalid): 找到了(!Refill) 但 V=0
+assign es_tlb_exc[`EARRAY_PIL] = es_valid & tlb_used & isload  & !es_tlb_exc[`EARRAY_TLBR_MEM] & !s1_v;
+assign es_tlb_exc[`EARRAY_PIS] = es_valid & tlb_used & isstore & !es_tlb_exc[`EARRAY_TLBR_MEM] & !s1_v;
+
+// 权限 (PPI): 找到了且有效(!Refill, !Invalid)，但权限不够
+assign es_tlb_exc[`EARRAY_PPI_MEM] = es_valid & tlb_used & (isload | isstore) 
+                                     & !es_tlb_exc[`EARRAY_TLBR_MEM]
+                                     & !es_tlb_exc[`EARRAY_PIL] 
+                                     & !es_tlb_exc[`EARRAY_PIS] 
+                                     & (crmd_plv_CSRoutput > s1_plv);
+
+// 修改 (PME): 找到了且有效且权限够，但是是 Store 操作且 D=0
+assign es_tlb_exc[`EARRAY_PME]     = es_valid & tlb_used & isstore 
+                                     & !es_tlb_exc[`EARRAY_TLBR_MEM]
+                                     & !es_tlb_exc[`EARRAY_PIS]
+                                     & !es_tlb_exc[`EARRAY_PPI_MEM] 
+                                     & !s1_d;
+
 assign es2ms_tlb_exc = ds2es_tlb_exc | es_tlb_exc;
 
 endmodule

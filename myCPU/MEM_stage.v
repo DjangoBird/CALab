@@ -83,6 +83,8 @@ wire        ms_refetch_flag;
 wire        tlbsrch_found;
 wire [ 3:0] tlbsrch_idxgot;
 
+reg  [ 7:0] ms2ws_tlb_exc_r;
+
 
 //类SRAM接口
 wire ms_wait_data_ok;
@@ -91,7 +93,7 @@ reg  ms_wait_data_ok_reg;
 assign ms_wait_data_ok = ms_wait_data_ok_reg & ms_valid & !wb_ex & !ms_ex;
 
 
-assign ms_ex = ((|ms_ex_zip[7:0]) | (|es2ms_tlb_exc)) && ms_valid & ~ms_refetch_flag;
+assign ms_ex = ((|ms_ex_zip[7:0]) | (|ms2ws_tlb_exc)) && ms_valid & ~ms_refetch_flag;
 
 //指令接收数据要等待数据返回握手完成（data_ok正在或已经为1）
 assign ms_ready_go    = !ms_wait_data_ok | ms_wait_data_ok & data_sram_data_ok;
@@ -117,7 +119,8 @@ always @(posedge clk) begin
         ms_wait_data_ok_reg <= 1'b0;
         ms_csr_re           <= 1'b0;
         ms_ex_zip           <= 87'b0;
-        ms_result           <=32'b0;
+        ms_result           <= 32'b0;
+        ms2ws_tlb_exc_r     <= 8'd0;
     end
     else if (es_to_ms_valid && ms_allowin) begin
         ms_pc               <= es_pc;
@@ -131,6 +134,7 @@ always @(posedge clk) begin
         ms_csr_re           <= es_csr_re;
         ms_ex_zip           <= es_ex_zip;
         ms_result           <= es_result;
+        ms2ws_tlb_exc_r     <= es2ms_tlb_exc;
     end
     else if(ms_allowin) begin
         ms_rf_we        <= 1'b0;
@@ -161,7 +165,7 @@ assign {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int,
 assign {ms_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, tlbsrch_found, tlbsrch_idxgot} = es2ms_tlb_zip;
 assign ms2ws_tlb_zip = es2ms_tlb_zip;
 assign ms_tlb_blk_zip = {inst_tlbrd & ms_valid, ms_csr_we & ms_valid, ms_csr_num};
-assign ms2ws_tlb_exc = es2ms_tlb_exc;
+assign ms2ws_tlb_exc = ms2ws_tlb_exc_r;
 
 endmodule
 
