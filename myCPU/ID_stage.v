@@ -234,6 +234,7 @@ wire [31:0] ds_csr_wmask;
 wire [31:0] ds_csr_wvalue;
 
 reg ds_adef_ex;
+reg  [ 7:0] ds_tlb_exc_r;
 
 /////////////////////////////////////////////////////////
 //handsake
@@ -265,11 +266,13 @@ always @(posedge clk) begin
         ds_inst <= 32'b0;
         ds_pc   <= 32'h1bffffff;
         ds_adef_ex <= 1'b0;
+        ds_tlb_exc_r <= 8'b0;
     end
     else if (ds_allowin && fs_to_ds_valid) begin
         ds_inst <= fs_inst;
         ds_pc   <= fs_pc;
         ds_adef_ex <= fs_adef_ex;
+        ds_tlb_exc_r <= fs_tlb_exc;
     end
 end
 
@@ -597,7 +600,7 @@ assign ms_tlb_blk = (load | store) && (
 
 assign ds2es_tlb_zip = {id_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op};
 
-assign ds_tlb_exc = fs_tlb_exc;
+assign ds_tlb_exc = ds_tlb_exc_r;
 
 endmodule
 
