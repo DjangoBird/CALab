@@ -246,10 +246,10 @@ assign dmw1_paddr = {csr_dmw1_pseg, nextpc_v[28:0]};
 
 assign tlb_paddr = (s0_ps == 6'd22) ? {s0_ppn[19:10], nextpc_v[21:0]} :
                                       {s0_ppn, nextpc_v[11:0]};
-assign nextpc_p = csr_direct_addr ? nextpc_v :
+assign nextpc_p = csr_direct_addr ? nextpc_v   :
                   dmw0_hit ?        dmw0_paddr :
                   dmw1_hit ?        dmw1_paddr :
-                                    tlb_paddr;
+                                    tlb_paddr  ;
 
 assign tlb_used = !csr_direct_addr && !dmw0_hit && !dmw1_hit;
 
