@@ -301,9 +301,9 @@ assign dmw1_paddr = {csr_dmw1_pseg, vaddr[28:0]};
 assign tlb_paddr  = (s1_ps == 6'd22) ? {s1_ppn[19:10], vaddr[21:0]} : {s1_ppn, vaddr[11:0]}; // 根据Page Size决定
 
 assign paddr   = csr_direct_addr ? vaddr    :
-                    dmw0_hit        ? dmw0_paddr  :
-                    dmw1_hit        ? dmw1_paddr  :
-                                      tlb_paddr   ;
+                dmw0_hit         ? dmw0_paddr  :
+                dmw1_hit         ? dmw1_paddr  :
+                                   tlb_paddr   ;
 assign tlb_used = (es_res_from_mem | (|es_mem_we)) & ~wb_ex & ~ms_ex & ~(|es_ex_zip[5:0]) & ~es_ale_ex & ~es_adem_ex //es_mem_req 
                   & (~csr_direct_addr & ~dmw0_hit & ~dmw1_hit);
 assign isstore  = |es_mem_we;
