@@ -404,7 +404,7 @@ EX_stage u_EX_stage(
     .data_sram_addr_ok(data_sram_addr_ok),
     
     .ms_ex(ms_ex),
-    .wb_ex(wb_ex|ertn_flush),
+    .wb_ex(wb_ex|ertn_flush|wb_refetch_flush),
     .es_ex(es_ex),
     
     .ds_csr_re(ds_csr_re),
