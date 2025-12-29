@@ -59,6 +59,8 @@ always @(posedge clk) begin
         es2ms_tlb_zip_reg <= 10'b0;
     else if (es_to_ms_valid && ms_allowin)
         es2ms_tlb_zip_reg <= es2ms_tlb_zip;
+    else if(ms_allowin)
+        es2ms_tlb_zip_reg <= 10'b0;
 end//21 debug
 
 wire ms_ready_go;

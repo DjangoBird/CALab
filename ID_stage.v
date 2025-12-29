@@ -60,6 +60,7 @@ module ID_stage(
 
     input wire [15:0]es_tlb_blk_zip,
     input wire [15:0]ms_tlb_blk_zip,
+    input wire [15:0] ws_tlb_blk_zip,//21 gemini
 
     //TLB exception
     input  wire [ 7:0] fs_tlb_exc,
@@ -193,6 +194,12 @@ wire        ms_tlb_blk;
 wire        ms_inst_tlbrd;
 wire [13:0] ms_csr_num;
 wire        ms_csr_we;
+
+wire        ws_tlb_blk;
+wire        ws_inst_tlbrd;
+wire [13:0] ws_csr_num;
+wire        ws_csr_we;//21gemini
+
 //blk
 wire        tlb_blk;
 
@@ -582,7 +589,8 @@ assign invtlb_op = ds_inst[4:0];
 
 assign {es_inst_tlbrd, es_csr_we, es_csr_num} = es_tlb_blk_zip;
 assign {ms_inst_tlbrd, ms_csr_we, ms_csr_num} = ms_tlb_blk_zip;
-assign tlb_blk = ms_tlb_blk | es_tlb_blk;
+assign {ws_inst_tlbrd, ws_csr_we, ws_csr_num} = ws_tlb_blk_zip;//21 gemini
+assign tlb_blk = ms_tlb_blk | es_tlb_blk | ws_tlb_blk;//21 gemini
 assign es_tlb_blk = (load | store) && (
                                         es_inst_tlbrd ||
                                         (es_csr_we && (es_csr_num == `CSR_ASID || es_csr_num == `CSR_CRMD || es_csr_num == `CSR_DMW0 || es_csr_num == `CSR_DMW1))
@@ -595,8 +603,19 @@ assign ms_tlb_blk = (load | store) && (
                                         (ms_csr_we && (ms_csr_num == `CSR_ASID || ms_csr_num == `CSR_CRMD || ms_csr_num == `CSR_DMW0 || ms_csr_num == `CSR_DMW1))
                 ) || inst_tlbsrch  && (
                                         ms_inst_tlbrd ||
-                                        (ms_csr_we && (ms_csr_num == `CSR_TLBEHI))
+                                        (ms_csr_we && (ms_csr_num == `CSR_TLBEHI || ms_csr_num == `CSR_ASID))
                 );
+assign ws_tlb_blk = (load | store) && (
+                        ws_inst_tlbrd ||
+                        (ws_csr_we && (ws_csr_num == `CSR_ASID || 
+                                       ws_csr_num == `CSR_CRMD || 
+                                       ws_csr_num == `CSR_DMW0 || 
+                                       ws_csr_num == `CSR_DMW1))
+                    ) ||
+                    inst_tlbsrch  && (
+                        ws_inst_tlbrd ||
+                        (ws_csr_we && (ws_csr_num == `CSR_ASID || ws_csr_num == `CSR_TLBEHI))
+                    );//21 gemini
 
 assign ds2es_tlb_zip = {id_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op};
 

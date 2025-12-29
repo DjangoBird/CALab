@@ -59,8 +59,14 @@ module WB_stage(
 
     input  wire [ 7:0] ms2ws_tlb_exc,
 
+    output wire [15:0] ws_tlb_blk_zip,//21 gemini
+
     output wire        current_exc_fetch
 );
+
+assign ws_tlb_blk_zip = {inst_wb_tlbrd & ws_valid, 
+                         csr_we         & ws_valid, 
+                         csr_num};
 
 reg [9:0] ms2ws_tlb_zip_reg;
 always @(posedge clk) begin
@@ -68,6 +74,8 @@ always @(posedge clk) begin
         ms2ws_tlb_zip_reg <= 10'b0;
     else if (ms_to_ws_valid && ws_allowin)
         ms2ws_tlb_zip_reg <= ms2ws_tlb_zip;
+    else if(ws_allowin)
+        ms2ws_tlb_zip_reg <= 10'b0;
 end//21 debug
 
 wire ws_ready_go;

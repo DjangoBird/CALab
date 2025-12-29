@@ -213,6 +213,7 @@ wire [ 9:0] ms2ws_tlb_zip;
 //TLB block
 wire [15:0] es_tlb_blk_zip;
 wire [15:0] ms_tlb_blk_zip;
+wire [15:0] ws_tlb_blk_zip;//21 gemini
 
 wire        wb_refetch_flush;
 
@@ -353,6 +354,7 @@ ID_stage u_ID_stage(
 
     .es_tlb_blk_zip (es_tlb_blk_zip),
     .ms_tlb_blk_zip (ms_tlb_blk_zip),
+    .ws_tlb_blk_zip (ws_tlb_blk_zip),//21 gemini
 
     .ds2es_tlb_zip  (ds2es_tlb_zip),
 
@@ -558,6 +560,8 @@ WB_stage u_WB_stage(
     .ms2ws_tlb_zip(ms2ws_tlb_zip),
 
     .current_exc_fetch(current_exc_fetch),
+
+    .ws_tlb_blk_zip (ws_tlb_blk_zip), // 21 gemini
 
     .ms2ws_tlb_exc(ms2ws_tlb_exc)
 );
