@@ -30,7 +30,8 @@ module mycpu_core(
     //icache 
     output wire [31:0] inst_addr_vrtl,
     //dcache
-    output wire [31:0] data_addr_vrtl
+    output wire [31:0] data_addr_vrtl,
+    output wire [ 1:0] datm
 );
 
 wire ds_allowin;
@@ -230,10 +231,14 @@ wire       csr_dmw0_plv0;
 wire       csr_dmw0_plv3;
 wire       csr_dmw1_plv0;
 wire       csr_dmw1_plv3;
+wire [1:0] csr_dmw0_mat;
+wire [1:0] csr_dmw1_mat;
 wire       csr_direct_addr;
 wire [1:0] crmd_plv_CSRoutput;
 
 wire       current_exc_fetch;
+
+wire [1:0] csr_crmd_datm;
 
 
 assign ertn_entry_target = ertn_flush ? ertn_entry :
@@ -448,7 +453,11 @@ EX_stage u_EX_stage(
     .csr_dmw0_plv3(csr_dmw0_plv3),
     .csr_dmw1_plv0(csr_dmw1_plv0),
     .csr_dmw1_plv3(csr_dmw1_plv3),
+    .csr_dmw0_mat(csr_dmw0_mat),
+    .csr_dmw1_mat(csr_dmw1_mat),
     .csr_direct_addr(csr_direct_addr),
+    .csr_crmd_datm(csr_crmd_datm),
+    .datm(datm),
 
     .ds_tlb_exc(ds_tlb_exc),
     .es2ms_tlb_exc(es2ms_tlb_exc),
@@ -649,7 +658,10 @@ csr u_csr(
         .csr_dmw1_plv0(csr_dmw1_plv0),
         .csr_dmw1_plv3(csr_dmw1_plv3),
         .csr_direct_addr(csr_direct_addr),
-        .current_exc_fetch(current_exc_fetch)
+        .current_exc_fetch(current_exc_fetch),
+        .csr_crmd_datm(csr_crmd_datm),
+        .csr_dmw0_mat(csr_dmw0_mat),
+        .csr_dmw1_mat(csr_dmw1_mat)
     
     );
     

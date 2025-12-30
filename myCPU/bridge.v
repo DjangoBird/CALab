@@ -32,7 +32,7 @@ module bridge(
     output reg  [ 3:0] wid,
     output reg  [31:0] wdata,
     output reg  [ 3:0] wstrb,    
-    output reg         wlast,
+    output wire        wlast,
     output wire        wvalid,
     input  wire        wready,  
     input  wire [ 3:0] bid,
@@ -51,7 +51,7 @@ module bridge(
     // output wire        inst_sram_data_ok,
     // output wire [31:0] inst_sram_rdata,
 
-        // icache rd interface
+    // icache rd interface
     input               	icache_rd_req,
     input   	[ 2:0]      icache_rd_type,
     input   	[31:0]      icache_rd_addr,
@@ -60,16 +60,23 @@ module bridge(
 	output					icache_ret_last,
     output  	[31:0]      icache_ret_data,//21
 
-    // data sram interface
-    input  wire        data_sram_req,
-    input  wire        data_sram_wr,
-    input  wire [ 3:0] data_sram_wstrb,
-    input  wire [ 1:0] data_sram_size,
-    input  wire [31:0] data_sram_addr,
-    input  wire [31:0] data_sram_wdata,
-    output wire        data_sram_addr_ok,
-    output wire        data_sram_data_ok,
-    output wire [31:0] data_sram_rdata
+    //dcache rd interface
+    input  wire        dcache_rd_req,
+    input  wire [ 2:0] dcache_rd_type,
+    input  wire [31:0] dcache_rd_addr,
+    output wire        dcache_rd_rdy,
+    output wire        dcache_ret_valid,
+    output  wire       dcache_ret_last,
+    input  wire [31:0] dcache_ret_data,
+
+    //dcache wr interface
+    input  wire        dcache_wr_req,
+    input  wire [ 2:0] dcache_wr_type,
+    input  wire [31:0] dcache_wr_addr,
+    input  wire [ 3:0] dcache_wr_wstrb,
+    input  wire[127:0] dcache_wr_data,
+    output wire        dcache_wr_rdy
+
 );
 
 reg [4:0] ar_current_state;//读请求状态机
@@ -82,14 +89,17 @@ reg [4:0] b_current_state;//写相应状态机
 reg [4:0] b_next_state;
 
 reg [1:0] ar_resp_count;
-reg [1:0] aw_resp_count;
-reg [1:0] wd_resp_count;
+// reg [1:0] aw_resp_count;
+// reg [1:0] wd_resp_count;
 
 reg [31:0] buf_rdata [1:0];//数据寄存器，0表示指令SRAM寄存器，1表示数据SRAM寄存器
 
 wire read_block;//当检测到读后写相关时，阻塞读请求，防止读到旧数据
 
 reg [3:0] rid_r;
+
+reg [1:0] w_data_cnt;
+reg [127:0] dcache_wr_data_r;
 
 localparam IDLE = 5'b1; //通道没有正在进行的事务，正在等待启动新事务的条件
 
@@ -111,7 +121,7 @@ always @(*) begin
 				if(~aresetn | read_block)begin
 					ar_next_state = IDLE;
 				end
-				else if(data_sram_req & ~data_sram_wr | icache_rd_req)begin//21
+				else if(dcache_rd_req | icache_rd_req)begin//21 读请求
 					ar_next_state = AR_REQ_START;
 				end
 				else begin
@@ -203,7 +213,7 @@ always @(*)begin
             if(~aresetn)begin
                 w_next_state = IDLE;
             end
-            else if(data_sram_wr)begin
+            else if(dcache_wr_req)begin
                 w_next_state = W_REQ_START;
             end
             else begin
@@ -211,13 +221,13 @@ always @(*)begin
             end
         end
         W_REQ_START:begin
-            if(awvalid & awready & wvalid &wready | (|aw_resp_count) & (|wd_resp_count))begin
+            if(awvalid & awready & wvalid &wready & wlast)begin
                 w_next_state = W_REQ_END;
             end
-            else if(awvalid & awready | (|aw_resp_count))begin
+            else if(awvalid & awready)begin
                 w_next_state = W_ADDR_RESP;
             end
-            else if(wvalid & wready | (|wd_resp_count))begin
+            else if(wvalid & wready & wlast)begin
                 w_next_state = W_DATA_RESP;
             end
             else begin
@@ -225,7 +235,7 @@ always @(*)begin
             end
         end
         W_ADDR_RESP:begin
-            if(wvalid & wready)begin
+            if(wvalid & wready & wlast)begin
                 w_next_state = W_REQ_END;
             end
             else begin
@@ -304,10 +314,10 @@ always @(posedge aclk)begin
         arprot <= 3'b0;
     end
     else if(ar_current_state[0])begin
-        arid <= {3'b0, data_sram_req & !data_sram_wr};//0表示指令sram，1表示数据sram
-        araddr <= data_sram_req & !data_sram_wr ? data_sram_addr : icache_rd_addr;//21
-        arsize <= data_sram_req & !data_sram_wr ? {1'b0,data_sram_size} : 3'b010;//21
-        arlen  <= data_sram_req & ~data_sram_wr? 8'b0 : 8'b11;//21
+        arid <= {3'b0, dcache_rd_req};
+        araddr <= dcache_rd_req ? dcache_rd_addr : icache_rd_addr;//21
+        arsize <= 3'b010;//21
+        arlen  <= dcache_rd_req ? (dcache_rd_type == 3'b100 ? 8'b11 : 8'b0) : 8'b11;//21
         arburst <= 2'b01;
         arlock <= 2'b0;
         arcache <=4'b0;
@@ -349,9 +359,13 @@ always @(posedge aclk)begin
         rid_r <= rid;
     end
 end
-assign data_sram_rdata = buf_rdata[1];
-assign data_sram_addr_ok = arid[0] & arvalid & arready | wid[0] &awvalid &awready;
-assign data_sram_data_ok = rid_r[0] & r_current_state[3] | bid[0] & bvalid &bready;//21
+assign dcache_ret_data  = buf_rdata[1];
+assign dcache_rd_rdy    = arid[0]  & arvalid & arready;
+assign dcache_ret_last  = rid_r[0] & r_current_state[3];
+assign dcache_ret_valid = rid_r[0] & (|r_current_state[3:2]);
+
+
+//21
 // assign inst_sram_rdata = buf_rdata[0];
 // assign inst_sram_addr_ok = ~arid[0] & arvalid & arready;
 // assign inst_sram_data_ok = ~rid_r[0] & r_current_state[2] | ~bid[0] & bvalid & bready;
@@ -374,10 +388,10 @@ always @(posedge aclk)begin
         awprot <= 3'b0;
     end
     else if(w_current_state[0])begin
-        awaddr <= data_sram_wr ? data_sram_addr : icache_rd_addr;//21
-        awsize <= data_sram_wr ? {1'b0,data_sram_size} : 3'b010;//21
+        awaddr <= dcache_wr_req ? dcache_wr_addr : icache_rd_addr;//21
+        awsize <= 3'b010;//21
         awid <= 4'b1;
-        awlen <=8'b0;
+        awlen <= dcache_wr_type == 3'b100 ? 8'b11 : 8'b0;
         awburst <= 2'b01;
         awlock <=2'b0;
         awcache <= 4'b0;
@@ -391,44 +405,63 @@ always @(posedge aclk)begin
         wid <= 4'b1;
         wdata <= 32'b0;
         wstrb <= 4'b0;
-        wlast <= 1'b1;
+        dcache_wr_data_r <= 128'b0;
     end
     else if(w_current_state[0])begin
-        wstrb <= data_sram_wstrb;
-        wdata <= data_sram_wdata;
+        wstrb <= dcache_wr_wstrb;
+        dcache_wr_data_r <= dcache_wr_data;
+        wdata <= dcache_wr_data[31:0];
         wid <= 4'b1;
-        wlast <= 1'b1;
+    end
+    else if(wvalid & wready) begin
+        wdata <= dcache_wr_data_r[31:0];
+        dcache_wr_data_r <= {32'b0,dcache_wr_data_r};
+    end
+end
+
+assign wlast = (w_data_cnt == awlen);
+assign dcache_wr_rdy = w_current_state[0];
+
+always @(posedge aclk)begin
+    if(!aresetn) begin
+        w_data_cnt <= 3'b0;
+    end
+    else if(wvalid & wready & wlast) begin 
+        w_data_cnt <=3'b0;
+    end
+    else if(wvalid & wready) begin 
+        w_data_cnt <= w_data_cnt +1'b1;
     end
 end
 
 assign bready = w_current_state[4];
-always @(posedge aclk)begin
-    if(~aresetn)begin
-        aw_resp_count <= 2'b0;
-    end
-    else if(awvalid & awready & bvalid & bready)begin
-        aw_resp_count <= aw_resp_count;
-    end
-    else if(awvalid & awready)begin
-        aw_resp_count <= aw_resp_count + 1'b1;
-    end
-    else if(bvalid & bready)begin
-        aw_resp_count <= aw_resp_count -1'b1;
-    end
-end//
-always @(posedge aclk)begin
-    if(~aresetn)begin
-        wd_resp_count <= 2'b0;
-    end
-    else if(wvalid & wready & bvalid & bready)begin
-        wd_resp_count <= wd_resp_count;
-    end
-    else if(wvalid & wready)begin
-        wd_resp_count <= wd_resp_count + 1'b1;
-    end
-    else if(bvalid & bready)begin
-        wd_resp_count <= wd_resp_count - 1'b1;
-    end
-end//
+// always @(posedge aclk)begin
+//     if(~aresetn)begin
+//         aw_resp_count <= 2'b0;
+//     end
+//     else if(awvalid & awready & bvalid & bready)begin
+//         aw_resp_count <= aw_resp_count;
+//     end
+//     else if(awvalid & awready)begin
+//         aw_resp_count <= aw_resp_count + 1'b1;
+//     end
+//     else if(bvalid & bready)begin
+//         aw_resp_count <= aw_resp_count -1'b1;
+//     end
+// end//
+// always @(posedge aclk)begin
+//     if(~aresetn)begin
+//         wd_resp_count <= 2'b0;
+//     end
+//     else if(wvalid & wready & bvalid & bready)begin
+//         wd_resp_count <= wd_resp_count;
+//     end
+//     else if(wvalid & wready)begin
+//         wd_resp_count <= wd_resp_count + 1'b1;
+//     end
+//     else if(bvalid & bready)begin
+//         wd_resp_count <= wd_resp_count - 1'b1;
+//     end
+// end//
 endmodule
 

@@ -92,18 +92,23 @@ module EX_stage(
     input  wire        csr_dmw0_plv3,
     input  wire [ 2:0] csr_dmw0_pseg,
     input  wire [ 2:0] csr_dmw0_vseg,
+    input  wire [ 1:0] csr_dmw0_mat,
     //DMW1
     input  wire        csr_dmw1_plv0,
     input  wire        csr_dmw1_plv3,
     input  wire [ 2:0] csr_dmw1_pseg,
     input  wire [ 2:0] csr_dmw1_vseg,
+    input  wire [ 1:0] csr_dmw1_mat,
 
+    //直接地址翻译
     input  wire        csr_direct_addr,
-
     input  wire [18:0] tlbehi_vppn_CSRoutput,
     input  wire [ 9:0] asid_CSRoutput,
     
-    output wire [31:0] vaddr //dcache
+    //dcache 
+    output wire [31:0] vaddr,
+    input  wire [ 1:0] csr_crmd_datm,
+    output wire [ 1:0] datm
 );
 
 reg [10:0] ds2es_tlb_zip_reg;
@@ -342,5 +347,10 @@ assign es_tlb_exc[`EARRAY_PME]     = es_valid & tlb_used & isstore
                                      & !s1_d;
 
 assign es2ms_tlb_exc = ds2es_tlb_exc | es_tlb_exc;
+
+assign datm = csr_direct_addr ? csr_crmd_datm :
+              dmw0_hit        ? csr_dmw0_mat  :
+              dmw1_hit        ? csr_dmw1_mat  :
+                                s1_mat;
 
 endmodule

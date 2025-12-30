@@ -41,6 +41,7 @@ module cache(
     output wire        addr_ok, 
     output wire        data_ok, 
     output wire [31:0] rdata,   
+    input  wire [ 1:0] datm,  //cache可缓存类型
 
     /* with AXI, Page 248 */
     // read ports
@@ -69,13 +70,16 @@ wire [20:0] tagv_w0_rdata, tagv_w1_rdata;
 wire        tagv_w0_en, tagv_w1_en;
 wire        tagv_w0_we, tagv_w1_we;
 
+wire uncache_flag;
+reg [ 1:0] datm_r;
+
 tagv_ram tagv_way0(
     .addra(tagv_addr),
     .clka(clk),
     .dina(tagv_wdata),
     .douta(tagv_w0_rdata),
     .ena(tagv_w0_en),
-    .wea(tagv_w0_we)
+    .wea(tagv_w0_we & !uncache_flag)
 );
 tagv_ram tagv_way1(
     .addra(tagv_addr),
@@ -83,7 +87,7 @@ tagv_ram tagv_way1(
     .dina(tagv_wdata),
     .douta(tagv_w1_rdata),
     .ena(tagv_w1_en),
-    .wea(tagv_w1_we)
+    .wea(tagv_w1_we & !uncache_flag)
 );
 
 // 例化data bank RAM，共2路，每路4个bank
@@ -108,7 +112,7 @@ data_bank_ram data_way0_bank0(
     .dina(data_wdata),
     .douta(data_w0_b0_rdata),
     .ena(data_w0_b0_en),
-    .wea(data_w0_b0_we)
+    .wea(data_w0_b0_we & {4{~uncache_flag}})
 );
 data_bank_ram data_way0_bank1(
     .addra(data_addr),
@@ -116,7 +120,7 @@ data_bank_ram data_way0_bank1(
     .dina(data_wdata),
     .douta(data_w0_b1_rdata),
     .ena(data_w0_b1_en),
-    .wea(data_w0_b1_we)
+    .wea(data_w0_b1_we & {4{~uncache_flag}})
 );
 data_bank_ram data_way0_bank2(
     .addra(data_addr),
@@ -124,7 +128,7 @@ data_bank_ram data_way0_bank2(
     .dina(data_wdata),
     .douta(data_w0_b2_rdata),
     .ena(data_w0_b2_en),
-    .wea(data_w0_b2_we)
+    .wea(data_w0_b2_we & {4{~uncache_flag}})
 );
 data_bank_ram data_way0_bank3(
     .addra(data_addr),
@@ -132,7 +136,7 @@ data_bank_ram data_way0_bank3(
     .dina(data_wdata),
     .douta(data_w0_b3_rdata),
     .ena(data_w0_b3_en),
-    .wea(data_w0_b3_we)
+    .wea(data_w0_b3_we & {4{~uncache_flag}})
 );
 data_bank_ram data_way1_bank0(
     .addra(data_addr),
@@ -140,7 +144,7 @@ data_bank_ram data_way1_bank0(
     .dina(data_wdata),
     .douta(data_w1_b0_rdata),
     .ena(data_w1_b0_en),
-    .wea(data_w1_b0_we)
+    .wea(data_w1_b0_we & {4{~uncache_flag}})
 );
 data_bank_ram data_way1_bank1(
     .addra(data_addr),
@@ -148,7 +152,7 @@ data_bank_ram data_way1_bank1(
     .dina(data_wdata),
     .douta(data_w1_b1_rdata),
     .ena(data_w1_b1_en),
-    .wea(data_w1_b1_we)
+    .wea(data_w1_b1_we & {4{~uncache_flag}})
 );
 data_bank_ram data_way1_bank2(
     .addra(data_addr),
@@ -156,7 +160,7 @@ data_bank_ram data_way1_bank2(
     .dina(data_wdata),
     .douta(data_w1_b2_rdata),
     .ena(data_w1_b2_en),
-    .wea(data_w1_b2_we)
+    .wea(data_w1_b2_we & {4{~uncache_flag}})
 );
 data_bank_ram data_way1_bank3(
     .addra(data_addr),
@@ -164,7 +168,7 @@ data_bank_ram data_way1_bank3(
     .dina(data_wdata),
     .douta(data_w1_b3_rdata),
     .ena(data_w1_b3_en),
-    .wea(data_w1_b3_we)
+    .wea(data_w1_b3_we & {4{~uncache_flag}})
 );
 
 // D表
@@ -228,7 +232,7 @@ assign {way0_tag, way0_v} = tagv_w0_rdata;
 assign {way1_tag, way1_v} = tagv_w1_rdata;
 assign way0_hit = way0_v && (way0_tag == reg_tag);
 assign way1_hit = way1_v && (way1_tag == reg_tag);// valid 且 tag 匹配
-assign cache_hit = way0_hit || way1_hit;
+assign cache_hit = (way0_hit || way1_hit) && (datm_r == 2'b01);
 
 // data select
 wire [127:0] way0_data, way1_data;// 整个Cache块Data
@@ -251,7 +255,7 @@ reg [ 1:0] refill_word_counter;// 记录从AXI总线返回了几个32位数据�
 always @(posedge clk)begin
     if(~resetn)
         refill_word_counter <= 2'b0;
-    else if(refill && ret_valid)
+    else if(refill && ret_valid && !uncache_flag)
         refill_word_counter <= refill_word_counter + 1'b1;
 end
 
@@ -280,7 +284,7 @@ wire         replace_way;
 wire [127:0] replace_data;
 
 assign replace_way = lfsr[0];
-assign replace_data = replace_way? way1_data : way0_data;
+assign replace_data = replace_way ? way1_data : way0_data;
 
 // write buffer
 reg        write_way; 
@@ -319,14 +323,14 @@ always @(posedge clk)begin
         dirty_way1 <= 256'b0;
     end
     // 写命中时拉高dirty位，Cache和内存数据不同
-    else if(hitwrite)begin
+    else if(hitwrite && !uncache_flag)begin
         if(way0_hit)
             dirty_way0[write_index] <= 1'b1;
         else if(way1_hit)
             dirty_way1[write_index] <= 1'b1;
     end
     // refill时取消dirty位，Cache和内存数据相同
-    else if(refill)begin
+    else if(refill && !uncache_flag)begin
         if(replace_way == 1'b0)
             dirty_way0[reg_index] <= 1'b0;
         else if(replace_way == 1'b1)
@@ -355,6 +359,18 @@ always @(posedge clk)begin
         current_state <= next_state;
 end
 
+
+always @(posedge clk)begin
+    if(!resetn)
+        datm_r <= 2'b01;
+    else if(valid)
+        datm_r <= datm;
+    else if(data_ok)
+        datm_r <= 2'b01;
+end
+
+assign uncache_flag = (datm_r == 2'b00);
+
 //2.
 always @(*)begin
     case(current_state)
@@ -365,7 +381,7 @@ always @(*)begin
             next_state = `IDLE;
     end
     `LOOKUP:begin
-        if(~cache_hit)
+        if(~cache_hit || uncache_flag || ((datm == 2'b00) && valid))
             next_state = `MISS;
         else if(valid && (~conflict_case1) && (~conflict_case2))
             next_state = `LOOKUP;
@@ -373,7 +389,11 @@ always @(*)begin
             next_state = `IDLE;
     end
     `MISS:begin
-        if((wr_rdy == 1) || (replace_dirty == 1'b0))//21?debug1
+        if(uncache_flag && reg_op == `WRITE && wr_rdy)
+            next_state = `IDLE;
+        else if(!uncache_flag && replace_dirty && wr_rdy)
+            next_state = `REPLACE;
+        else if(!uncache_flag && !replace_dirty || uncache_flag && reg_op == `READ)
             next_state = `REPLACE;
         else
             next_state = `MISS;
@@ -506,24 +526,34 @@ assign data_w1_b3_we = {4{hitwrite && (write_way == 1'b1) && (write_bank == 2'b1
 // P254
 /* with CPU */
 assign addr_ok = (current_state == `IDLE) ||
-                 (current_state == `LOOKUP) && cache_hit &&
+                 (current_state == `LOOKUP) && (cache_hit || datm == 2'b0) &&
                  valid && (~conflict_case1) && (~conflict_case2);
-assign data_ok = (current_state == `LOOKUP) && cache_hit || 
-                 (current_state == `LOOKUP) && (reg_op == `WRITE) ||
-                 (current_state == `REFILL) && ret_valid && (refill_word_counter == reg_offset[3:2]) && (reg_op == `READ);
+assign data_ok = (current_state == `LOOKUP) && cache_hit     && !uncache_flag || 
+                 (current_state == `MISS)   && uncache_flag  && wr_rdy    && (reg_op == `WRITE) || 
+                 (current_state == `REFILL) && uncache_flag  && ret_valid && ret_last ||
+                 (current_state == `REFILL) && !uncache_flag && ret_valid && (refill_word_counter == reg_offset[3:2]);
 assign rdata   = load_res;
 
 /* with AXI */
 assign rd_req = (current_state == `REPLACE);
-assign rd_type = `READ_BLOCK; // 后续考虑 ucached 
-assign rd_addr = {reg_tag, reg_index, 4'b0000};
+assign rd_type = {3{!uncache_flag}} & `READ_BLOCK |
+                 {3{ uncache_flag}} & `READ_WORD   ; // 后续考虑 ucached 
+assign rd_addr = {32{!uncache_flag}} & {reg_tag, reg_index, 4'b0000} |
+                 {32{ uncache_flag}} & {reg_tag, reg_index, reg_offset};
 
 
-assign wr_req = (current_state == `MISS) && replace_dirty;
-assign wr_type = `WRITE_BLOCK; // 后续考虑 ucached
-assign wr_addr = {32{replace_way == 1'b0}} & {way0_tag, reg_index, 4'b0000} |
-                 {32{replace_way == 1'b1}} & {way1_tag, reg_index, 4'b0000};
-assign wr_wstrb = 4'b1111; // 后续考虑 ucached
-assign wr_data = replace_data;
+assign wr_req = (current_state == `MISS) && replace_dirty && !uncache_flag ||
+                (current_state == `MISS) && (reg_op == `WRITE) && uncache_flag;
+assign wr_type = {3{!uncache_flag && reg_op}} & `WRITE_BLOCK | 
+                 {3{ uncache_flag}} & `WRITE_WORD; // 后续考虑 ucached
+assign wr_addr = {32{ uncache_flag}} & {reg_tag, reg_index, reg_offset} |
+                 {32{!uncache_flag}} & (
+                 {32{replace_way == 1'b0}} & {way0_tag, reg_index, 4'b0000} |
+                 {32{replace_way == 1'b1}} & {way1_tag, reg_index, 4'b0000}
+                 );
+assign wr_wstrb = {4{ uncache_flag}} & reg_wstrb |
+                  {4{!uncache_flag}} & 4'b1111; // 后续考虑 ucached
+assign wr_data = {128{ uncache_flag}} & reg_wdata |
+                 {128{!uncache_flag}} & replace_data;
 
 endmodule

@@ -84,19 +84,22 @@ module csr(
     // output wire [31:0] csr_dmw0_rvalue,
     // output wire [31:0] csr_dmw1_rvalue,
 
-    output reg  csr_dmw0_plv0,
-    output reg  csr_dmw0_plv3,
+    output reg        csr_dmw0_plv0,
+    output reg        csr_dmw0_plv3,
     output reg  [1:0] csr_dmw0_mat,
     output reg  [2:0] csr_dmw0_pseg,
     output reg  [2:0] csr_dmw0_vseg,
-    output reg  csr_dmw1_plv0,
-    output reg  csr_dmw1_plv3,
+    output reg        csr_dmw1_plv0,
+    output reg        csr_dmw1_plv3,
     output reg  [1:0] csr_dmw1_mat,
     output reg  [2:0] csr_dmw1_pseg,
     output reg  [2:0] csr_dmw1_vseg,
-    output wire csr_direct_addr,
-    output reg  [1:0]  csr_crmd_plv,
-    input  wire current_exc_fetch
+    output wire       csr_direct_addr,
+    output reg  [1:0] csr_crmd_plv,
+    input  wire       current_exc_fetch,
+
+    //exp22
+    output reg [ 1:0] csr_crmd_datm
     
 );
     wire [31:0] csr_crmd_rvalue;
