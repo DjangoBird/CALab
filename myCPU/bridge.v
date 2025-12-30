@@ -40,16 +40,26 @@ module bridge(
     input  wire        bvalid,
     output wire        bready,
 
-    // inst sram interface
-    input  wire        inst_sram_req,
-    input  wire        inst_sram_wr,
-    input  wire [ 3:0] inst_sram_wstrb,
-    input  wire [ 1:0] inst_sram_size,
-    input  wire [31:0] inst_sram_addr,
-    input  wire [31:0] inst_sram_wdata,
-    output wire        inst_sram_addr_ok,
-    output wire        inst_sram_data_ok,
-    output wire [31:0] inst_sram_rdata,
+    // // inst sram interface
+    // input  wire        inst_sram_req,
+    // input  wire        inst_sram_wr,
+    // input  wire [ 3:0] inst_sram_wstrb,
+    // input  wire [ 1:0] inst_sram_size,
+    // input  wire [31:0] inst_sram_addr,
+    // input  wire [31:0] inst_sram_wdata,
+    // output wire        inst_sram_addr_ok,
+    // output wire        inst_sram_data_ok,
+    // output wire [31:0] inst_sram_rdata,
+
+        // icache rd interface
+    input               	icache_rd_req,
+    input   	[ 2:0]      icache_rd_type,
+    input   	[31:0]      icache_rd_addr,
+    output              	icache_rd_rdy,		// icache_addr_ok
+    output              	icache_ret_valid,	// icache_data_ok
+	output					icache_ret_last,
+    output  	[31:0]      icache_ret_data,//21
+
     // data sram interface
     input  wire        data_sram_req,
     input  wire        data_sram_wr,
@@ -101,7 +111,7 @@ always @(*) begin
 				if(~aresetn | read_block)begin
 					ar_next_state = IDLE;
 				end
-				else if(data_sram_req & ~data_sram_wr | inst_sram_req & ~inst_sram_wr)begin
+				else if(data_sram_req & ~data_sram_wr | icache_rd_req)begin//21
 					ar_next_state = AR_REQ_START;
 				end
 				else begin
@@ -125,8 +135,9 @@ always @(*) begin
     endcase
 end
 
-localparam R_DATA_START = 3'b010, //状态1：等待读数据
-           R_DATA_END  = 3'b100; //状态2：读数据接收完毕
+    localparam  R_DATA_START   	= 4'b0010,
+				R_DATA_MID      = 4'b0100,
+				R_DATA_END		= 4'b1000;//21
 
 always @(posedge aclk) begin
     if(~aresetn) begin
@@ -148,19 +159,27 @@ always @(*) begin
             end
         end
         R_DATA_START:begin
-            if(rvalid & rready & rlast)begin
-                r_next_state = R_DATA_END;
-                end
-                else begin
-                    r_next_state = R_DATA_START;
-                end
-        end
+				if(rvalid & rready & rlast) 	// 传输完毕
+					r_next_state = R_DATA_END;
+				else if(rvalid & rready)		// 传输中
+					r_next_state = R_DATA_MID;
+				else
+					r_next_state = R_DATA_START;
+		end
+		R_DATA_MID:begin
+				if(rvalid & rready & rlast) 	// 传输完毕
+					r_next_state = R_DATA_END;
+				else if(rvalid & rready)		// 传输中
+					r_next_state = R_DATA_MID;
+				else
+					r_next_state = R_DATA_START;
+		end//21
         R_DATA_END:begin
             r_next_state =IDLE;
-            end
+        end
             default:begin
                 r_next_state =IDLE;
-            end
+        end
     endcase
 end
 
@@ -278,7 +297,7 @@ always @(posedge aclk)begin
         arid <= 4'b0;
         araddr <= 32'b0;
         arlen <= 8'b0;
-        arsize <= 3'b0;
+        arsize <= 3'b010;
         arburst <= 2'b01;
         arlock <= 2'b0;
         arcache <=4'b0;
@@ -286,9 +305,9 @@ always @(posedge aclk)begin
     end
     else if(ar_current_state[0])begin
         arid <= {3'b0, data_sram_req & !data_sram_wr};//0表示指令sram，1表示数据sram
-        araddr <= data_sram_req & !data_sram_wr ? data_sram_addr : inst_sram_addr;
-        arsize <= data_sram_req & !data_sram_wr ? {1'b0,data_sram_size} : {1'b0,inst_sram_size};
-        arlen <= 8'b0;
+        araddr <= data_sram_req & !data_sram_wr ? data_sram_addr : icache_rd_addr;//21
+        arsize <= data_sram_req & !data_sram_wr ? {1'b0,data_sram_size} : 3'b010;//21
+        arlen  <= data_sram_req & ~data_sram_wr? 8'b0 : 8'b11;//21
         arburst <= 2'b01;
         arlock <= 2'b0;
         arcache <=4'b0;
@@ -300,17 +319,17 @@ always @(posedge aclk) begin
     if(~aresetn)begin
         ar_resp_count <= 2'b0;
     end
-    else if(arvalid & arready & rvalid & rready)begin
+    else if(arvalid & arready & rvalid & rready & rlast)begin//21
         ar_resp_count <= ar_resp_count;//发生在同一周期的处理
     end
     else if(arvalid & arready)begin
         ar_resp_count <= ar_resp_count + 1'b1;
     end
-    else if(rvalid & rready)begin
+    else if(rvalid & rready & rlast)begin//21
         ar_resp_count <= ar_resp_count - 1'b1;
     end
 end
-assign rready = r_current_state == R_DATA_START ? 1'b1 : 1'b0;
+assign rready = r_current_state[1] || r_current_state[2];	// R_DATA_START | R_DATA_MID //21
 
 assign read_block = (araddr == awaddr) & (|w_current_state[4:1]) & ~b_current_state[2];
 always @(posedge aclk)begin
@@ -332,10 +351,15 @@ always @(posedge aclk)begin
 end
 assign data_sram_rdata = buf_rdata[1];
 assign data_sram_addr_ok = arid[0] & arvalid & arready | wid[0] &awvalid &awready;
-assign data_sram_data_ok = rid_r[0] & r_current_state[2] | bid[0] & bvalid &bready;
-assign inst_sram_rdata = buf_rdata[0];
-assign inst_sram_addr_ok = ~arid[0] & arvalid & arready;
-assign inst_sram_data_ok = ~rid_r[0] & r_current_state[2] | ~bid[0] & bvalid & bready;
+assign data_sram_data_ok = rid_r[0] & r_current_state[3] | bid[0] & bvalid &bready;//21
+// assign inst_sram_rdata = buf_rdata[0];
+// assign inst_sram_addr_ok = ~arid[0] & arvalid & arready;
+// assign inst_sram_data_ok = ~rid_r[0] & r_current_state[2] | ~bid[0] & bvalid & bready;
+
+assign icache_ret_data = buf_rdata[0];
+assign icache_ret_valid = ~rid_r[0] & (|r_current_state[3:2]); // rvalid & rready的下一拍
+assign icache_rd_rdy = ~arid[0] & arvalid & arready;
+assign icache_ret_last = ~rid_r[0] & r_current_state[3];//21
 
 assign awvalid = w_current_state == W_REQ_START | w_current_state == W_DATA_RESP ;
 always @(posedge aclk)begin
@@ -350,8 +374,8 @@ always @(posedge aclk)begin
         awprot <= 3'b0;
     end
     else if(w_current_state[0])begin
-        awaddr <= data_sram_wr ? data_sram_addr : inst_sram_addr;
-        awsize <= data_sram_wr ? {1'b0,data_sram_size} : {1'b0,inst_sram_size};
+        awaddr <= data_sram_wr ? data_sram_addr : icache_rd_addr;//21
+        awsize <= data_sram_wr ? {1'b0,data_sram_size} : 3'b010;//21
         awid <= 4'b1;
         awlen <=8'b0;
         awburst <= 2'b01;

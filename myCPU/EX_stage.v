@@ -101,8 +101,13 @@ module EX_stage(
     input  wire        csr_direct_addr,
 
     input  wire [18:0] tlbehi_vppn_CSRoutput,
-    input  wire [ 9:0] asid_CSRoutput
+    input  wire [ 9:0] asid_CSRoutput,
+    
+    output wire [31:0] vaddr //dcache
 );
+
+reg [10:0] ds2es_tlb_zip_reg;
+
 
 wire es_ready_go;
 reg  es_valid;
@@ -203,6 +208,7 @@ always @(posedge clk) begin
         es_ex_zip_reg   <= 85'b0;
         es_csr_re       <= 1'b0;
         ds2es_tlb_exc   <= 8'b0;
+        ds2es_tlb_zip_reg <= 11'b0;
     end
     else if (ds_to_es_valid && es_allowin) begin
         es_alu_op       <= ds_alu_op;
@@ -222,6 +228,7 @@ always @(posedge clk) begin
         es_csr_re       <= ds_csr_re;
 
         ds2es_tlb_exc   <= ds_tlb_exc;
+        ds2es_tlb_zip_reg <= ds2es_tlb_zip;
     end
     else if(es_allowin) begin
         es_rf_we        <= 1'b0;
@@ -245,7 +252,6 @@ alu u_alu(
 assign es_result = inst_rdcntvh ? time_counter[63:32] :
                    inst_rdcntvl ? time_counter[31:0]  :
                    es_alu_result;
-
 
 wire [3:0] es_mem_we;
 assign es_mem_we[0]     = op_st_w | op_st_h & ~es_alu_result[1] | op_st_b & ~es_alu_result[0] & ~es_alu_result[1];   
@@ -277,7 +283,7 @@ assign es_adem_ex = 1'b0;
 assign es_ex_zip ={es_csr_we, es_csr_wmask, es_csr_wvalue, es_csr_num, es_ertn, es_has_int, es_adef_ex, es_sys_ex, es_brk_ex, es_ine_ex, es_ale_ex, es_adem_ex};
 
 //TLB
-assign {es_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op} = ds2es_tlb_zip;
+assign {es_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, inst_invtlb, invtlb_op} = ds2es_tlb_zip_reg;
 assign es2ms_tlb_zip = {es_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, s1_found, s1_index};
 
 assign {s1_vppn, s1_va_bit12} = inst_invtlb  ? es_rkd_value[31:12] :
@@ -298,7 +304,9 @@ assign dmw1_hit  = (vaddr[31:29] == csr_dmw1_vseg) & (crmd_plv_CSRoutput == 2'd0
 assign dmw0_paddr = {csr_dmw0_pseg, vaddr[28:0]};
 assign dmw1_paddr = {csr_dmw1_pseg, vaddr[28:0]};
 
-assign tlb_paddr  = (s1_ps == 6'd22) ? {s1_ppn[19:10], vaddr[21:0]} : {s1_ppn, vaddr[11:0]}; // 根据Page Size决定
+// assign tlb_paddr  = (s1_ps == 6'd22) ? {s1_ppn[19:10], vaddr[21:0]} : {s1_ppn, vaddr[11:0]}; // 根据Page Size决定
+assign tlb_paddr  = (s1_ps == 6'd21) ? {s1_ppn[19:10], vaddr[21:0]} : {s1_ppn, vaddr[11:0]}; // 根据Page Size决定  //21
+
 
 assign paddr   = csr_direct_addr ? vaddr    :
                 dmw0_hit         ? dmw0_paddr  :

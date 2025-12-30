@@ -373,7 +373,7 @@ always @(*)begin
             next_state = `IDLE;
     end
     `MISS:begin
-        if((wr_rdy == 1))
+        if((wr_rdy == 1) || (replace_dirty == 1'b0))//21?debug1
             next_state = `REPLACE;
         else
             next_state = `MISS;

@@ -59,8 +59,24 @@ module WB_stage(
 
     input  wire [ 7:0] ms2ws_tlb_exc,
 
+    output wire [15:0] ws_tlb_blk_zip,//21 gemini
+
     output wire        current_exc_fetch
 );
+
+assign ws_tlb_blk_zip = {inst_wb_tlbrd & ws_valid, 
+                         csr_we         & ws_valid, 
+                         csr_num};
+
+reg [9:0] ms2ws_tlb_zip_reg;
+always @(posedge clk) begin
+    if(!resetn)
+        ms2ws_tlb_zip_reg <= 10'b0;
+    else if (ms_to_ws_valid && ws_allowin)
+        ms2ws_tlb_zip_reg <= ms2ws_tlb_zip;
+    else if(ws_allowin)
+        ms2ws_tlb_zip_reg <= 10'b0;
+end//21 debug
 
 wire ws_ready_go;
 reg  ws_valid;
@@ -96,7 +112,7 @@ assign ws_allowin     = (!ws_valid || ws_ready_go) & (~wb_ex);
 always @(posedge clk) begin
     if (!resetn)
         ws_valid <= 1'b0;
-    else if(wb_ex | ertn_flush)
+    else if(wb_ex | ertn_flush | wb_refetch_flush) //21
         ws_valid <= 1'b0;
     else if (ws_allowin)
         ws_valid <= ms_to_ws_valid;
@@ -170,7 +186,7 @@ assign debug_wb_rf_wnum  = ws_rf_waddr;
 assign debug_wb_rf_wdata = ws_rf_wdata;
 
 //TLB
-assign {wb_refetch_flag, inst_wb_tlbsrch, inst_wb_tlbrd, inst_wb_tlbwr, inst_wb_tlbfill, wb_tlbsrch_found, wb_tlbsrch_idxgot} = ms2ws_tlb_zip;
+assign {wb_refetch_flag, inst_wb_tlbsrch, inst_wb_tlbrd, inst_wb_tlbwr, inst_wb_tlbfill, wb_tlbsrch_found, wb_tlbsrch_idxgot} = ms2ws_tlb_zip_reg;//21debug
 assign tlb_we = (inst_wb_tlbwr || inst_wb_tlbfill) && ws_valid;
 assign wb_refetch_flush = wb_refetch_flag && ws_valid;
 

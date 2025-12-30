@@ -60,7 +60,9 @@ module IF_stage(
 
     input  wire        csr_direct_addr,
 
-    output wire [ 7:0] fs_tlb_exc
+    output wire [ 7:0] fs_tlb_exc,
+    //icache
+    output wire [31:0] inst_addr_vrtl
 );
 
 wire pf_ready_go;
@@ -87,11 +89,15 @@ wire [31:0] seq_pc;
 // wire [31:0] nextpc;
 wire [31:0] nextpc_v;
 wire [31:0] nextpc_p;
+assign inst_addr_vrtl = nextpc_v;
 
 reg  [31:0] fs_inst_buf;
 reg         fs_inst_buf_valid;
 
 reg         inst_sram_addr_ack;
+
+// wire        inst_sram_addr_ack_r;
+// assign      inst_sram_addr_ack_r = inst_sram_addr_ack & !inst_sram_data_ok;//21
 
 //TLB
 //addr translation
@@ -110,7 +116,7 @@ always @(posedge clk) begin
     if (!resetn) begin
         inst_discard <= 1'b0;
     end
-    else if (pf_cancel & inst_sram_req | fs_cancel & !fs_allowin & !fs_ready_go) begin//
+    else if (pf_cancel & inst_sram_req & inst_sram_addr_ok| fs_cancel & !fs_allowin & !fs_ready_go) begin//21
         inst_discard <= 1'b1;
     end
     else if (inst_discard & inst_sram_data_ok)begin
@@ -120,7 +126,7 @@ end
 
 assign fs_ready_go  = (inst_sram_data_ok | fs_inst_buf_valid) & !inst_discard;//有指令
 assign fs_allowin   = (!fs_valid) | (fs_ready_go & ds_allowin);
-assign fs_to_ds_valid = fs_valid & fs_ready_go;
+assign fs_to_ds_valid = fs_valid & fs_ready_go ;
 assign pf_ready_go = inst_sram_req & inst_sram_addr_ok;//握手成功
 assign to_fs_valid = pf_ready_go & ~pf_block &~pf_cancel;
 
@@ -165,9 +171,9 @@ always @(posedge clk)begin
     if(!resetn)begin
         pf_block <= 1'b0;
     end
-    else if(pf_cancel & ~inst_sram_data_ok)begin
-        pf_block <= 1'b1;
-    end
+    // else if(pf_cancel & ~inst_sram_data_ok)begin
+    //     pf_block <= 1'b1;
+    // end     //21?
     else if(inst_sram_data_ok)begin
         pf_block <= 1'b0;
     end
@@ -184,7 +190,7 @@ always @(posedge clk) begin
         ertn_entry_reg <= 32'b0;
     end
     else if (wb_ex )begin
-        wb_ex_reg <= wb_ex;
+        wb_ex_reg <= 1'b1; //21 ? 
         ex_entry_reg <= ex_entry;
     end
     else if(ertn_flush ) begin
@@ -218,7 +224,7 @@ assign nextpc_v = wb_ex_reg ? ex_entry_reg:
 assign fs_inst = fs_inst_buf_valid ? fs_inst_buf : inst_sram_rdata; 
 
 
-assign inst_sram_req   = fs_allowin & resetn & (~br_stall | wb_ex | ertn_flush) & ~pf_block & ~inst_sram_addr_ack;//16
+assign inst_sram_req   = fs_allowin & resetn & (~br_stall | wb_ex | ertn_flush) & ~pf_block & ~inst_sram_addr_ack;//16 //21？
 assign inst_sram_wr    = (|inst_sram_wstrb);
 assign inst_sram_wstrb = 4'b0;
 assign inst_sram_addr  = nextpc_p;

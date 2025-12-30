@@ -26,7 +26,11 @@ module mycpu_core(
     output wire [31:0] debug_wb_pc,
     output wire [ 3:0] debug_wb_rf_we,
     output wire [ 4:0] debug_wb_rf_wnum,
-    output wire [31:0] debug_wb_rf_wdata
+    output wire [31:0] debug_wb_rf_wdata,
+    //icache 
+    output wire [31:0] inst_addr_vrtl,
+    //dcache
+    output wire [31:0] data_addr_vrtl
 );
 
 wire ds_allowin;
@@ -209,6 +213,7 @@ wire [ 9:0] ms2ws_tlb_zip;
 //TLB block
 wire [15:0] es_tlb_blk_zip;
 wire [15:0] ms_tlb_blk_zip;
+wire [15:0] ws_tlb_blk_zip;//21 gemini
 
 wire        wb_refetch_flush;
 
@@ -285,7 +290,9 @@ IF_stage u_IF_stage(
     .csr_dmw1_plv3(csr_dmw1_plv3),
     .csr_direct_addr(csr_direct_addr),
 
-    .fs_tlb_exc(fs_tlb_exc)
+    .fs_tlb_exc(fs_tlb_exc),
+    //icache
+    .inst_addr_vrtl(inst_addr_vrtl)
 );
 
 ID_stage u_ID_stage(
@@ -347,6 +354,7 @@ ID_stage u_ID_stage(
 
     .es_tlb_blk_zip (es_tlb_blk_zip),
     .ms_tlb_blk_zip (ms_tlb_blk_zip),
+    .ws_tlb_blk_zip (ws_tlb_blk_zip),//21 gemini
 
     .ds2es_tlb_zip  (ds2es_tlb_zip),
 
@@ -396,7 +404,7 @@ EX_stage u_EX_stage(
     .data_sram_addr_ok(data_sram_addr_ok),
     
     .ms_ex(ms_ex),
-    .wb_ex(wb_ex|ertn_flush),
+    .wb_ex(wb_ex|ertn_flush|wb_refetch_flush),
     .es_ex(es_ex),
     
     .ds_csr_re(ds_csr_re),
@@ -443,7 +451,9 @@ EX_stage u_EX_stage(
     .csr_direct_addr(csr_direct_addr),
 
     .ds_tlb_exc(ds_tlb_exc),
-    .es2ms_tlb_exc(es2ms_tlb_exc)
+    .es2ms_tlb_exc(es2ms_tlb_exc),
+
+    .vaddr(data_addr_vrtl)
 );
 
 MEM_stage u_MEM_stage(
@@ -550,6 +560,8 @@ WB_stage u_WB_stage(
     .ms2ws_tlb_zip(ms2ws_tlb_zip),
 
     .current_exc_fetch(current_exc_fetch),
+
+    .ws_tlb_blk_zip (ws_tlb_blk_zip), // 21 gemini
 
     .ms2ws_tlb_exc(ms2ws_tlb_exc)
 );

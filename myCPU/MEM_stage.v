@@ -53,6 +53,16 @@ module MEM_stage(
 
 );
 
+reg [9:0] es2ms_tlb_zip_reg;
+always @(posedge clk) begin
+    if (!resetn)
+        es2ms_tlb_zip_reg <= 10'b0;
+    else if (es_to_ms_valid && ms_allowin)
+        es2ms_tlb_zip_reg <= es2ms_tlb_zip;
+    else if(ms_allowin)
+        es2ms_tlb_zip_reg <= 10'b0;
+end//21 debug
+
 wire ms_ready_go;
 reg  ms_valid;
 reg  [31:0] ms_alu_result;
@@ -97,8 +107,8 @@ assign ms_ex = ((|ms_ex_zip[7:0]) | (|ms2ws_tlb_exc)) && ms_valid & ~ms_refetch_
 
 //指令接收数据要等待数据返回握手完成（data_ok正在或已经为1）
 assign ms_ready_go    = !ms_wait_data_ok | ms_wait_data_ok & data_sram_data_ok;
-assign ms_allowin     = !ms_valid || ms_ready_go && ws_allowin | wb_ex;
-assign ms_to_ws_valid = ms_valid && ms_ready_go & ~wb_ex;
+assign ms_allowin     = !ms_valid || ms_ready_go && ws_allowin ;//21?
+assign ms_to_ws_valid = ms_valid && ms_ready_go ;//21 ?
 always @(posedge clk) begin
     if (!resetn)
         ms_valid <= 1'b0;
@@ -162,8 +172,8 @@ assign ms_rf_wdata = ms_res_from_mem ? ms_mem_result : ms_result;
 assign {ms_csr_we, ms_csr_wmask, ms_csr_wvalue, ms_csr_num, ms_ertn, ms_has_int, ms_adef_ex, ms_sys_ex, ms_brk_ex, ms_ine_ex, ms_ale_ex, ms_adem_ex} = ms_ex_zip;
 
 //TLB
-assign {ms_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, tlbsrch_found, tlbsrch_idxgot} = es2ms_tlb_zip;
-assign ms2ws_tlb_zip = es2ms_tlb_zip;
+assign {ms_refetch_flag, inst_tlbsrch, inst_tlbrd, inst_tlbwr, inst_tlbfill, tlbsrch_found, tlbsrch_idxgot} = es2ms_tlb_zip_reg;//21debug
+assign ms2ws_tlb_zip = es2ms_tlb_zip_reg;
 assign ms_tlb_blk_zip = {inst_tlbrd & ms_valid, ms_csr_we & ms_valid, ms_csr_num};
 assign ms2ws_tlb_exc = ms2ws_tlb_exc_r;
 
