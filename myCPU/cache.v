@@ -544,16 +544,21 @@ assign rd_addr = {32{!uncache_flag}} & {reg_tag, reg_index, 4'b0000} |
 
 assign wr_req = (current_state == `MISS) && replace_dirty && !uncache_flag ||
                 (current_state == `MISS) && (reg_op == `WRITE) && uncache_flag;
-assign wr_type = {3{!uncache_flag && reg_op}} & `WRITE_BLOCK | 
-                 {3{ uncache_flag}} & `WRITE_WORD; // 后续考虑 ucached
+
+assign wr_type = (!uncache_flag) ? `WRITE_BLOCK : // Cached 替换写回，固定为块写
+                 (reg_wstrb == 4'b1111) ? `WRITE_WORD :
+                 (reg_wstrb == 4'b0011 || reg_wstrb == 4'b1100) ? `WRITE_HALFWORD :
+                 `WRITE_BYTE;
+
 assign wr_addr = {32{ uncache_flag}} & {reg_tag, reg_index, reg_offset} |
                  {32{!uncache_flag}} & (
                  {32{replace_way == 1'b0}} & {way0_tag, reg_index, 4'b0000} |
                  {32{replace_way == 1'b1}} & {way1_tag, reg_index, 4'b0000}
                  );
+
 assign wr_wstrb = {4{ uncache_flag}} & reg_wstrb |
                   {4{!uncache_flag}} & 4'b1111; // 后续考虑 ucached
-assign wr_data = {128{ uncache_flag}} & reg_wdata |
-                 {128{!uncache_flag}} & replace_data;
+
+assign wr_data = uncache_flag ? {96'b0, reg_wdata} : replace_data;
 
 endmodule

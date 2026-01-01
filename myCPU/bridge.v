@@ -67,7 +67,7 @@ module bridge(
     output wire        dcache_rd_rdy,
     output wire        dcache_ret_valid,
     output  wire       dcache_ret_last,
-    input  wire [31:0] dcache_ret_data,
+    output  wire [31:0] dcache_ret_data,
 
     //dcache wr interface
     input  wire        dcache_wr_req,
@@ -316,7 +316,9 @@ always @(posedge aclk)begin
     else if(ar_current_state[0])begin
         arid <= {3'b0, dcache_rd_req};
         araddr <= dcache_rd_req ? dcache_rd_addr : icache_rd_addr;//21
-        arsize <= 3'b010;//21
+        arsize <= dcache_rd_req ? 
+          ((dcache_rd_type == 3'b100) ? 3'b010 : dcache_rd_type) : 
+          3'b010;
         arlen  <= dcache_rd_req ? (dcache_rd_type == 3'b100 ? 8'b11 : 8'b0) : 8'b11;//21
         arburst <= 2'b01;
         arlock <= 2'b0;
@@ -341,7 +343,7 @@ always @(posedge aclk) begin
 end
 assign rready = r_current_state[1] || r_current_state[2];	// R_DATA_START | R_DATA_MID //21
 
-assign read_block = (araddr == awaddr) & (|w_current_state[4:1]) & ~b_current_state[2];
+assign read_block = (ar_current_state != IDLE) || (|ar_resp_count) || (w_current_state != IDLE);
 always @(posedge aclk)begin
     if(~aresetn)begin
         buf_rdata[0] <= 32'b0;
@@ -389,7 +391,7 @@ always @(posedge aclk)begin
     end
     else if(w_current_state[0])begin
         awaddr <= dcache_wr_req ? dcache_wr_addr : icache_rd_addr;//21
-        awsize <= 3'b010;//21
+        awsize <= (dcache_wr_type == 3'b100) ? 3'b010 : dcache_wr_type;
         awid <= 4'b1;
         awlen <= dcache_wr_type == 3'b100 ? 8'b11 : 8'b0;
         awburst <= 2'b01;
@@ -415,7 +417,7 @@ always @(posedge aclk)begin
     end
     else if(wvalid & wready) begin
         wdata <= dcache_wr_data_r[31:0];
-        dcache_wr_data_r <= {32'b0,dcache_wr_data_r};
+        dcache_wr_data_r <= dcache_wr_data_r>>32;
     end
 end
 
@@ -434,7 +436,9 @@ always @(posedge aclk)begin
     end
 end
 
-assign bready = w_current_state[4];
+
+assign bready = 1'b1;
+// assign bready = w_current_state[4];
 // always @(posedge aclk)begin
 //     if(~aresetn)begin
 //         aw_resp_count <= 2'b0;
